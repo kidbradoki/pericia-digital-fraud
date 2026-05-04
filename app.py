@@ -26,7 +26,7 @@ def obter_regiao_fiscal(cpf):
 
 @app.route('/')
 def index():
-    return render_template('index.html', ferramentas=ferramentas)
+    return render_template('index.html', ferramentas=FERRAMENTAS)
 
 # Rota de API para o Kodular e para o Site
 @app.route('/api/executar', methods=['POST'])
