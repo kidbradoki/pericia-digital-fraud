@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perícia Digital & Anti-Fraude</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; width: 100%; max-width: 1000px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; text-align: center; transition: 0.3s; cursor: pointer; }
+        .card:hover { border-color: #38bdf8; transform: translateY(-5px); }
+        .card i { font-size: 2.5rem; color: #38bdf8; margin-bottom: 15px; }
+        .card h3 { margin: 10px 0; color: #f8fafc; }
+        .card p { font-size: 0.9rem; color: #94a3b8; }
+        .status-badge { background: #064e3b; color: #34d399; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; margin-top: 10px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1><i class="fas fa-shield-halved"></i> Central de Perícia Digital</h1>
+        <p>Sistema de Análise de Fraudes e Inteligência de Dados</p>
+    </div>
+
+    <div class="grid">
+        {% for ferramenta in ferramentas %}
+        <div class="card" onclick="alert('Iniciando {{ ferramenta.nome }}...')">
+            <i class="{{ ferramenta.icone }}"></i>
+            <h3>{{ ferramenta.nome }}</h3>
+            <p>{{ ferramenta.desc }}</p>
+            <span class="status-badge">Ativo</span>
+        </div>
+        {% endfor %}
+    </div>
+
+</body>
+</html>
