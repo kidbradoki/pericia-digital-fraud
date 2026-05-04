@@ -25,11 +25,11 @@
     </div>
 
     <div class="grid">
-        {% for ferramenta in ferramentas %}
-        <div class="card" onclick="alert('Iniciando {{ ferramenta.nome }}...')">
-            <i class="{{ ferramenta.icone }}"></i>
-            <h3>{{ ferramenta.nome }}</h3>
-            <p>{{ ferramenta.desc }}</p>
+        {% for ferramentas in ferramentas %}
+        <div class="card" onclick="alert('Iniciando {{ ferramentas.nome }}...')">
+            <i class="{{ ferramentas.icone }}"></i>
+            <h3>{{ ferramentas.nome }}</h3>
+            <p>{{ ferramentas.desc }}</p>
             <span class="status-badge">Ativo</span>
         </div>
         {% endfor %}
