@@ -1,89 +1,52 @@
-import hashlib
-import webbrowser
-import requests
-from faker import Faker
+from flask import Flask, render_template, request, jsonify
+import re
 
-fake = Faker('pt_BR')
+app = Flask(__name__)
 
-# --- NOVAS FUNÇÕES DE PERÍCIA ---
+# Dados para o Menu Principal
+FERRAMENTAS = [
+    {"id": "pericia", "nome": "Perícia de Comprovante", "icon": "🔍", "desc": "Análise de região e autenticidade."},
+    {"id": "osint", "nome": "Rastreio OSINT", "icon": "🌐", "desc": "Busca de pegada digital e redes."},
+    {"id": "bancos", "nome": "Consulta de Bancos", "icon": "🏦", "desc": "Verificação de IPs e instituições."},
+    {"id": "cpf", "nome": "Validador de CPF", "icon": "👤", "desc": "Cálculo de dígitos e região fiscal."}
+]
 
-def pericia_comprovante(nome, cpf_parcial, instituicao, chave):
-    """Analisa dados extraídos de comprovantes de transferência."""
-    print(f"\n--- 📑 RELATÓRIO DE PERÍCIA: {nome.upper()} ---")
+# Lógica de Região Fiscal (Exemplo)
+def obter_regiao_fiscal(cpf):
+    regioes = {
+        '1': 'DF, GO, MS, MT, TO', '2': 'AC, AM, AP, PA, RO, RR',
+        '3': 'CE, MA, PI', '4': 'AL, PB, PE, RN',
+        '5': 'BA, SE', '6': 'MG', '7': 'ES, RJ',
+        '8': 'SP', '9': 'PR, SC', '0': 'RS'
+    }
+    num = re.sub(r'\D', '', cpf)
+    if len(num) == 11:
+        return regioes.get(num[8], "Desconhecida")
+    return "CPF Inválido"
+
+@app.route('/')
+def index():
+    return render_template('index.html', ferramentas=FERRAMENTAS)
+
+# Rota de API para o Kodular e para o Site
+@app.route('/api/executar', methods=['POST'])
+def executar():
+    dados = request.json
+    acao = dados.get('acao')
+    valor = dados.get('valor', '')
     
-    # 1. Análise de Região Fiscal (Baseado no 9º dígito do CPF)
-    # Exemplo do PDF: XXX.812.877-XX -> O 9º dígito é 7
-    digitos = "".join(filter(str.isdigit, cpf_parcial))
-    regiao_info = "Desconhecida"
-    if len(digitos) >= 9:
-        nono_digito = digitos[8]
-        mapa = {
-            "1": "DF, GO, MS, MT, TO", "2": "AC, AM, AP, PA, RO, RR",
-            "3": "CE, MA, PI", "4": "AL, PB, PE, RN", "5": "BA, SE",
-            "6": "MG", "7": "ES, RJ", "8": "SP", "9": "PR, SC", "0": "RS"
-        }
-        regiao_info = mapa.get(nono_digito, "Não identificada")
+    if acao == 'pericia':
+        regiao = obter_regiao_fiscal(valor)
+        return jsonify({
+            "status": "sucesso",
+            "resultado": f"Região Fiscal: {regiao}",
+            "alertas": "Instituição com alto índice de reclamações detectada." if "Celcoin" in valor else "Nenhum alerta crítico."
+        })
     
-    print(f"📍 ORIGEM DO CPF: {regiao_info} (Dígito {nono_digito if len(digitos)>=9 else '?'})")
+    elif acao == 'osint':
+        return jsonify({"status": "sucesso", "resultado": f"Rastreando pegada digital para: {valor}..."})
 
-    # 2. Análise da Instituição (Baseado no código do banco)
-    # Celcoin (509) é uma IP (Instituição de Pagamento)
-    inst_baixa = instituicao.lower()
-    if "celcoin" in inst_baixa or "ip s.a" in inst_baixa or "pagamento" in inst_baixa:
-        print("⚠️ ALERTA DE BANCO: Instituição de Pagamento digital. Alta incidência em contas de passagem.")
-    else:
-        print(f"🏦 INSTITUIÇÃO: {instituicao}")
+    return jsonify({"status": "erro", "mensagem": "Ação não reconhecida"})
 
-    # 3. Análise do Tipo de Chave PIX
-    if len(chave) > 30 and "-" in chave:
-        print("🚩 TIPO DE CHAVE: Aleatória (EVP). Comum para ocultar identidade real (e-mail/telefone).")
-    else:
-        print(f"🔑 CHAVE UTILIZADA: {chave}")
-
-    print("-" * 45)
-    print(f"🔗 INVESTIGAR NOME: https://www.jusbrasil.com.br/consulta-processual/nome?q={nome.replace(' ', '+')}")
-
-# --- FUNÇÕES ANTERIORES MANTIDAS ---
-
-def analisar_link(url):
-    url = url.lower().strip()
-    print(f"\n🔍 ANALISANDO: {url}")
-    if not url.startswith("https"):
-        print("🚨 RISCO: Site sem criptografia HTTPS!")
-    if any(g in url for g in ["promo", "ganhe", "atualizar"]):
-        print("⚠️ GATILHO: Palavra de urgência ou brinde detectada.")
-
-# --- INTERFACE INTEGRADA ---
-
-while True:
-    print(f"\n{'='*40}")
-    print("      🛡️ DEFESA DIGITAL & PERÍCIA v6.0")
-    print(f"{'='*40}")
-    print("1. [PERÍCIA] Analisar Dados de Comprovante")
-    print("2. [ESCUDO] Verificar Link de Golpe")
-    print("3. [OSINT] Rastrear Redes Sociais")
-    print("4. [REAL] Consultar CNPJ de Empresa")
-    print("5. [HASH] Criptografia de Senha")
-    print("0. Sair")
-    
-    op = input("\nComando > ")
-
-    if op == "1":
-        n = input("Nome no comprovante: ")
-        c = input("CPF (ex: XXX.812.877-XX): ")
-        b = input("Instituição/Banco: ")
-        k = input("Chave PIX: ")
-        pericia_comprovante(n, c, b, k)
-    elif op == "2":
-        analisar_link(input("Cole o link: "))
-    elif op == "3":
-        nome_busca = input("Nome Completo: ")
-        # Aqui abre os links que já configuramos (JusBrasil, FB, etc)
-    elif op == "4":
-        cnpj = input("CNPJ (só números): ")
-        # Chamada para BrasilAPI
-    elif op == "5":
-        txt = input("Senha: ")
-        print(f"Hash SHA-256: {hashlib.sha256(txt.encode()).hexdigest()}")
-    elif op == "0":
-        break
+if __name__ == '__main__':
+    app.run(debug=True)
