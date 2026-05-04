@@ -1,44 +1,29 @@
+
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Defesa Digital</title>
+    <title>Painel de Defesa Digital</title>
     <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; padding: 20px; text-align: center; }
-        .card { background: #1e293b; padding: 20px; border-radius: 15px; border: 1px solid #334155; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        input { width: 90%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: #334155; color: white; }
-        button { width: 90%; padding: 12px; background: #0284c7; color: white; border: none; border-radius: 8px; font-weight: bold; margin-top: 10px; }
-        #resultado { margin-top: 20px; padding: 10px; border-radius: 8px; font-size: 14px; line-height: 1.5; }
-        .alerta { color: #fbbf24; font-weight: bold; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; text-align: center; }
+        .container { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; padding: 20px; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; width: 250px; cursor: pointer; transition: 0.3s; }
+        .card:hover { border-color: #38bdf8; transform: translateY(-5px); }
+        .icon { font-size: 40px; margin-bottom: 10px; }
+        h2 { color: #38bdf8; }
     </style>
 </head>
 <body>
-    <h2>🛡️ Perícia Anti-Fraude</h2>
-    <div class="card">
-        <input type="text" id="cpf" placeholder="CPF (Ex: XXX.812.877-XX)">
-        <input type="text" id="banco" placeholder="Instituição (Ex: Celcoin)">
-        <button onclick="analisar()">EXECUTAR PERÍCIA</button>
-        <div id="resultado"></div>
+    <h1>🛡️ Sistema Pericial Ghost</h1>
+    <div class="container">
+        {% for f in ferramentas %}
+        <div class="card" onclick="alert('Iniciando {{ f.nome }}...')">
+            <div class="icon">{{ f.icon }}</div>
+            <h3>{{ f.nome }}</h3>
+            <p style="font-size: 0.9em; color: #94a3b8;">{{ f.desc }}</p>
+        </div>
+        {% endfor %}
     </div>
-
-    <script>
-        async function analisar() {
-            const res = await fetch('/periciar', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    cpf: document.getElementById('cpf').value,
-                    banco: document.getElementById('banco').value
-                })
-            });
-            const data = await res.json();
-            let html = `<b>📍 Região Fiscal:</b> ${data.regiao}<br>`;
-            if(data.alertas.length > 0) {
-                html += `<p class="alerta">${data.alertas.join('<br>')}</p>`;
-            }
-            document.getElementById('resultado').innerHTML = html;
-        }
-    </script>
 </body>
 </html>
