@@ -1,0 +1,29 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Defesa Digital</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; text-align: center; }
+        .container { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; padding: 20px; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; width: 250px; cursor: pointer; transition: 0.3s; }
+        .card:hover { border-color: #38bdf8; transform: translateY(-5px); }
+        .icon { font-size: 40px; margin-bottom: 10px; }
+        h2 { color: #38bdf8; }
+    </style>
+</head>
+<body>
+    <h1>🛡️ Sistema Pericial Ghost</h1>
+    <div class="container">
+        {% for f in ferramentas %}
+        <div class="card" onclick="alert('Iniciando {{ f.nome }}...')">
+            <div class="icon">{{ f.icon }}</div>
+            <h3>{{ f.nome }}</h3>
+            <p style="font-size: 0.9em; color: #94a3b8;">{{ f.desc }}</p>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>
