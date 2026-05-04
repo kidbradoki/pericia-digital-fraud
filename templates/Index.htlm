@@ -25,7 +25,7 @@
     </div>
 
     <div class="grid">
-        {% for ferramenta in ferramentas %}
+        {% for ferramenta in ferramenta %}
         <div class="card" onclick="alert('Iniciando {{ ferramenta.nome }}...')">
             <i class="{{ ferramenta.icone }}"></i>
             <h3>{{ ferramenta.nome }}</h3>
