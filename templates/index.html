@@ -8,13 +8,20 @@
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; }
         .header { text-align: center; margin-bottom: 30px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; width: 100%; max-width: 1000px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; width: 100%; max-width: 1000px; margin-bottom: 30px; }
         .card { background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; text-align: center; transition: 0.3s; cursor: pointer; }
         .card:hover { border-color: #38bdf8; transform: translateY(-5px); }
-        .card i { font-size: 2.5rem; color: #38bdf8; margin-bottom: 15px; }
         .card h3 { margin: 10px 0; color: #f8fafc; }
         .card p { font-size: 0.9rem; color: #94a3b8; }
         .status-badge { background: #064e3b; color: #34d399; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; margin-top: 10px; display: inline-block; }
+        
+        /* Área de Trabalho */
+        #painel-execucao { display:none; width: 100%; max-width: 600px; padding: 25px; background: #1e293b; border-radius: 15px; border: 2px solid #3b82f6; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; margin-top: 20px; }
+        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; margin: 15px 0; font-size: 1rem; outline: none; }
+        input:focus { border-color: #3b82f6; }
+        button { width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #2563eb; }
+        #resultado-analise { margin-top: 20px; padding: 15px; border-radius: 8px; background: #0f172a; border-left: 4px solid #10b981; color: #34d399; font-family: monospace; text-align: left; white-space: pre-wrap; }
     </style>
 </head>
 <body>
@@ -26,14 +33,73 @@
 
     <div class="grid">
         {% for ferramenta in ferramentas %}
-        <div class="card" onclick="alert('Iniciando {{ ferramenta.nome }}...')">
-            <i class="{{ ferramenta.icon }}"></i>
+        <div class="card" onclick="abrirFerramenta('{{ ferramenta.id }}', '{{ ferramenta.nome }}')">
+            <div style="font-size: 2.5rem; margin-bottom: 10px;">{{ ferramenta.icon }}</div>
             <h3>{{ ferramenta.nome }}</h3>
             <p>{{ ferramenta.desc }}</p>
             <span class="status-badge">Ativo</span>
         </div>
         {% endfor %}
     </div>
+
+    <div id="painel-execucao">
+        <h3 id="titulo-ferramenta" style="color: #38bdf8;"></h3>
+        <p id="desc-ajuda" style="font-size: 0.85rem; color: #94a3b8;"></p>
+        <input type="text" id="input-valor" placeholder="Insira os dados para perícia...">
+        <button onclick="enviarDados()">INICIAR ANÁLISE</button>
+        <div id="resultado-analise" style="display:none;"></div>
+    </div>
+
+    <script>
+        let ferramentaAtual = '';
+
+        function abrirFerramenta(id, nome) {
+            ferramentaAtual = id;
+            document.getElementById('painel-execucao').style.display = 'block';
+            document.getElementById('titulo-ferramenta').innerText = nome;
+            document.getElementById('resultado-analise').style.display = 'none';
+            document.getElementById('input-valor').value = '';
+            
+            // Texto de ajuda baseado na ferramenta
+            const ajuda = {
+                'pericia': 'Envie o número do CPF para verificar a região de emissão do comprovante.',
+                'osint': 'Insira o @usuario ou e-mail para rastrear pegadas digitais.',
+                'bancos': 'Insira o CPF ou CNPJ para consultar instituições vinculadas.',
+                'cpf': 'Validador técnico de dígitos e região fiscal.'
+            };
+            document.getElementById('desc-ajuda').innerText = ajuda[id] || '';
+            
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        async function enviarDados() {
+            const valor = document.getElementById('input-valor').value;
+            const resDiv = document.getElementById('resultado-analise');
+            
+            if (!valor) { alert('Por favor, insira um dado para análise.'); return; }
+
+            resDiv.style.display = 'block';
+            resDiv.innerText = "🔍 Processando perícia digital... Aguarde.";
+
+            try {
+                const response = await fetch('/api/executar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({acao: ferramentaAtual, valor: valor})
+                });
+                
+                const dados = await response.json();
+                
+                if(dados.status === 'sucesso') {
+                    resDiv.innerHTML = `<strong>RESULTADO DA ANÁLISE:</strong>\n\n✅ ${dados.resultado}`;
+                } else {
+                    resDiv.innerHTML = `<strong>FALHA NA PERÍCIA:</strong>\n\n❌ ${dados.mensagem}`;
+                }
+            } catch (e) {
+                resDiv.innerText = "❌ Erro de conexão com o servidor.";
+            }
+        }
+    </script>
 
 </body>
 </html>
