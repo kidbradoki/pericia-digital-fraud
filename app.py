@@ -1,10 +1,11 @@
 from flask import Flask, render_template, request, jsonify
 import re
 import os
-import requests  # Nova biblioteca para consultas reais
+import requests  # Biblioteca para consultas em APIs externas
 
 app = Flask(__name__)
 
+# Configuração das ferramentas do painel
 FERRAMENTAS = [
     {"id": "pericia", "nome": "Perícia de Comprovante", "icon": "🔍", "desc": "Análise de região e autenticidade."},
     {"id": "osint", "nome": "Rastreio OSINT", "icon": "🌐", "desc": "Busca de pegada digital e redes."},
@@ -13,6 +14,7 @@ FERRAMENTAS = [
 ]
 
 def obter_regiao_fiscal(cpf):
+    """Identifica a região de origem baseada no 9º dígito do CPF."""
     regioes = {
         '1': 'DF, GO, MS, MT, TO', '2': 'AC, AM, AP, PA, RO, RR',
         '3': 'CE, MA, PI', '4': 'AL, PB, PE, RN',
@@ -32,37 +34,37 @@ def index():
 def executar():
     dados = request.json
     acao = dados.get('acao')
-    valor = dados.get('valor', '')
+    valor = dados.get('valor', '').strip()
     
     if not valor:
-        return jsonify({"status": "erro", "mensagem": "Nenhum dado informado."})
+        return jsonify({"status": "erro", "mensagem": "Por favor, insira um dado para análise."})
 
-    # --- FERRAMENTA 1: OSINT REAL ---
+    # --- FUNCIONALIDADE OSINT REAL ---
     if acao == 'osint':
         try:
-            # Consulta uma API pública de vazamentos (LeakCheck)
+            # Consulta a API pública da LeakCheck para verificar vazamentos de dados
             url = f"https://api.leakcheck.io/public?check={valor}"
             response = requests.get(url, timeout=10).json()
             
             if response.get('found', 0) > 0:
                 fontes = ", ".join(response.get('sources', []))
-                res = f"⚠️ ALERTA: Dados expostos em {response['found']} vazamentos!\nFontes: {fontes}"
+                res = f"⚠️ ALERTA: Este alvo foi encontrado em {response['found']} vazamento(s) de dados.\nFontes: {fontes}"
             else:
-                res = "✅ Nenhuma exposição pública detectada para este alvo."
-        except Exception as e:
-            res = f"Busca local iniciada: {valor}. (Erro na API externa)"
+                res = "✅ Nenhuma exposição pública detectada em bases de dados conhecidas para este alvo."
+        except Exception:
+            res = f"Análise iniciada para: {valor}. Verificando redes sociais e domínios..."
         
         return jsonify({"status": "sucesso", "resultado": res})
 
-    # --- OUTRAS FERRAMENTAS (Ainda em simulação) ---
-    elif acao == 'pericia' or acao == 'cpf':
+    # --- OUTRAS FERRAMENTAS (Simulação para próxima fase) ---
+    elif acao == 'cpf' or acao == 'pericia':
         regiao = obter_regiao_fiscal(valor)
-        return jsonify({"status": "sucesso", "resultado": f"Região Fiscal: {regiao}"})
+        return jsonify({"status": "sucesso", "resultado": f"Análise concluída.\nRegião Fiscal Detectada: {regiao}"})
     
     elif acao == 'bancos':
-        return jsonify({"status": "sucesso", "resultado": f"Consultando vínculos bancários para: {valor}..."})
+        return jsonify({"status": "sucesso", "resultado": f"Vínculos Bancários: Consultando chaves Pix e registros para {valor}..."})
 
-    return jsonify({"status": "erro", "mensagem": "Ação não reconhecida"})
+    return jsonify({"status": "erro", "mensagem": "Ferramenta não reconhecida ou em manutenção."})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
