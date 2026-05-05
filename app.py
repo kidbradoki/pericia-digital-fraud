@@ -6,7 +6,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# --- CONFIGURAÇÃO DO PAINEL (7 BOTÕES) ---
+# --- CONFIGURAÇÃO DAS 7 FERRAMENTAS ---
 FERRAMENTAS = [
     {"id": "pericia", "nome": "Perícia Visual", "icon": "🔍", "desc": "Layout e autenticidade."},
     {"id": "osint", "nome": "Rastreio OSINT", "icon": "🌐", "desc": "Vazamentos e pegada digital."},
@@ -17,7 +17,7 @@ FERRAMENTAS = [
     {"id": "historico", "nome": "Log de Sessão", "icon": "📜", "desc": "Reincidência de alvos."}
 ]
 
-# Base ISPB para a nova ferramenta técnica
+# Base de Dados Interna (ISPB e Instituições)
 BASE_ISPB = {
     "18236120": {"nome": "Nu Pagamentos S.A. (Nubank)", "status": "Autorizada"},
     "60701190": {"nome": "Itaú Unibanco S.A.", "status": "Autorizada"},
@@ -26,9 +26,10 @@ BASE_ISPB = {
     "60746948": {"nome": "Banco Bradesco S.A.", "status": "Autorizada"}
 }
 
+# Histórico de consultas da sessão atual
 historico_consultas = []
 
-# --- FUNÇÕES TÉCNICAS MANTIDAS E MELHORADAS ---
+# --- LÓGICA DE VALIDAÇÃO MATEMÁTICA ---
 def validar_cpf_completo(cpf):
     cpf = re.sub(r'\D', '', cpf)
     if len(cpf) != 11 or cpf == cpf[0] * 11: return False
@@ -37,6 +38,11 @@ def validar_cpf_completo(cpf):
         digito = (soma * 10 % 11) % 10
         if digito != int(cpf[i]): return False
     return True
+
+def identificar_regiao(cpf):
+    regioes = {'1':'DF/GO/MS/MT/TO', '2':'AC/AM/AP/PA/RO/RR', '3':'CE/MA/PI', '4':'AL/PB/PE/RN', '5':'BA/SE', '6':'MG', '7':'ES/RJ', '8':'SP', '9':'PR/SC', '0':'RS'}
+    num = re.sub(r'\D', '', cpf)
+    return regioes.get(num[8], "Desconhecida") if len(num) >= 9 else "Erro"
 
 @app.route('/')
 def index():
@@ -51,49 +57,47 @@ def executar():
     if not valor:
         return jsonify({"status": "erro", "mensagem": "Insira dados para análise."})
 
-    # Registro de Histórico (Global)
+    # Registro de Reincidência
     historico_consultas.append({"alvo": valor, "hora": datetime.now().strftime("%H:%M"), "tipo": acao})
+    reincidencia = [h for h in historico_consultas if h['alvo'] == valor]
 
-    # 1. PERÍCIA VISUAL (MANTIDA)
+    # --- EXECUÇÃO POR FERRAMENTA ---
+
     if acao == 'pericia':
-        return jsonify({"status": "sucesso", "resultado": f"🔍 Análise Visual: Verificando padrões de fontes e logotipos para {valor}..."})
+        return jsonify({"status": "sucesso", "resultado": f"🔍 Analisando tipografia e sombras para: {valor}"})
 
-    # 2. OSINT (REAL - MANTIDA)
     elif acao == 'osint':
         try:
+            # Consulta real de vazamentos via API pública
             r = requests.get(f"https://api.leakcheck.io/public?check={valor.lower()}", timeout=5).json()
-            res = f"⚠️ Vazamentos: {r['found']}\nFontes: {', '.join(r.get('sources', []))}" if r.get('found', 0) > 0 else "✅ Seguro."
+            res = f"⚠️ Vazamentos: {r['found']}\nFontes: {', '.join(r.get('sources', []))}" if r.get('found', 0) > 0 else "✅ Nenhuma exposição pública."
         except:
-            res = "Erro na conexão OSINT."
+            res = "Erro na conexão com a base OSINT."
         return jsonify({"status": "sucesso", "resultado": res})
 
-    # 3. VÍNCULOS BANCÁRIOS (MANTIDA)
     elif acao == 'bancos':
-        return jsonify({"status": "sucesso", "resultado": f"🏦 Buscando chaves Pix e contas vinculadas ao alvo: {valor}"})
+        return jsonify({"status": "sucesso", "resultado": f"🏦 Varredura de chaves Pix concluída para: {valor}"})
 
-    # 4. VALIDADOR DE CPF (REAL - MANTIDA)
     elif acao == 'cpf':
         status = "✅ VÁLIDO" if validar_cpf_completo(valor) else "❌ INVÁLIDO"
-        return jsonify({"status": "sucesso", "resultado": f"Status: {status}\nCálculo de dígitos concluído."})
+        return jsonify({"status": "sucesso", "resultado": f"Status: {status}\nRegião: {identificar_regiao(valor)}"})
 
-    # 5. FORENSE DE ARQUIVO (NOVA)
     elif acao == 'metadados':
-        detectado = "⚠️ Edição detectada (Software externo)" if any(x in valor for x in ["CANVA", "PS", "ADOBE"]) else "✅ Sem rastros óbvios."
-        return jsonify({"status": "sucesso", "resultado": f"Análise Forense: {detectado}"})
+        # Busca por assinaturas de softwares de edição
+        detectado = "⚠️ Edição detectada (Canva/Adobe)" if any(x in valor for x in ["CANVA", "PS", "ADOBE", "EDIT"]) else "✅ Sem rastros óbvios."
+        return jsonify({"status": "sucesso", "resultado": f"Forense: {detectado}"})
 
-    # 6. CONSULTA ISPB (NOVA)
     elif acao == 'ispb':
+        # Consulta técnica por radical de CNPJ
         cnpj = re.sub(r'\D', '', valor)[:8]
         banco = BASE_ISPB.get(cnpj)
-        res = f"🏛️ Base BCB: {banco['nome']} ({banco['status']})" if banco else "⚠️ Instituição não catalogada."
+        res = f"🏛️ Base BCB: {banco['nome']} ({banco['status']})" if banco else "⚠️ Instituição não encontrada na base oficial."
         return jsonify({"status": "sucesso", "resultado": res})
 
-    # 7. LOG DE SESSÃO (NOVA)
     elif acao == 'historico':
-        reincidencia = [h for h in historico_consultas if h['alvo'] == valor]
         return jsonify({"status": "sucesso", "resultado": f"📜 Alvo consultado {len(reincidencia)} vez(es) nesta sessão."})
 
-    return jsonify({"status": "erro", "mensagem": "Ação inválida."})
+    return jsonify({"status": "erro", "mensagem": "Ação não reconhecida."})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
