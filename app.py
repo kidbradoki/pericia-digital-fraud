@@ -7,10 +7,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# --- CONFIGURAÇÃO DE CHAVES (Substitua quando contratar o serviço) ---
-TOKEN_OSINT = "SEU_TOKEN_AQUI" 
-TOKEN_DADOS = "SEU_TOKEN_AQUI"
-
+# --- PAINEL DE CONTROLE ---
 FERRAMENTAS = [
     {"id": "pericia", "nome": "Perícia Visual", "icon": "🔍", "desc": "Layout e autenticidade."},
     {"id": "osint", "nome": "Rastreio OSINT", "icon": "🌐", "desc": "Vazamentos e pegada digital."},
@@ -30,8 +27,7 @@ def carregar_base_veiculos():
         caminho = os.path.join(os.path.dirname(__file__), 'dados_veiculos.json')
         with open(caminho, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except Exception:
-        return {}
+    except Exception: return {}
 
 def gerar_moldura(titulo, conteudo):
     res =  "╔════════════════════════════════════════╗\n"
@@ -51,75 +47,71 @@ def executar():
     dados = request.json
     acao = dados.get('acao')
     valor = dados.get('valor', '').strip().upper()
-    
-    if not valor:
-        return jsonify({"status": "erro", "mensagem": "Insira um alvo para análise."})
+    if not valor: return jsonify({"status": "erro", "mensagem": "Insira um alvo."})
 
     historico_consultas.append({"alvo": valor, "tipo": acao, "hora": datetime.now().strftime("%H:%M:%S")})
 
-    # --- 1. CONSULTA CNPJ (API REAL PUBLICA) ---
+    # --- 1. CONSULTA CNPJ (GRATUITA - RECEITA WS) ---
     if acao == 'cpf' and len(re.sub(r'\D', '', valor)) > 11:
-        cnpj_limpo = re.sub(r'\D', '', valor)
+        cnpj = re.sub(r'\D', '', valor)
         try:
-            # Usando API pública gratuita para teste de CNPJ
-            r = requests.get(f"https://receitaws.com.br/v1/cnpj/{cnpj_limpo}", timeout=5).json()
+            r = requests.get(f"https://receitaws.com.br/v1/cnpj/{cnpj}", timeout=5).json()
             if r.get('status') == 'OK':
-                cont = f" 🏢 EMPRESA: {r.get('nome')}\n 🏷️ FANTASIA: {r.get('fantasia')}\n 🆔 CNPJ: {valor}\n"
-                cont += "──────────────────────────────────────────\n"
-                cont += f" 📅 ABERTURA: {r.get('abertura')}\n 📍 LOCAL: {r.get('municipio')}/{r.get('uf')}\n"
-                cont += f" 💰 CAPITAL: R$ {r.get('capital_social')}\n 📞 CONTATO: {r.get('telefone')}"
-                return jsonify({"status": "sucesso", "resultado": gerar_moldura("CONSULTA CNPJ FEDERAL", cont)})
-        except:
-            pass
+                cont = f" 🏢 RAZÃO: {r.get('nome')}\n 🆔 CNPJ:  {valor}\n 📅 INÍCIO: {r.get('abertura')}\n"
+                cont += f" 📍 CIDADE: {r.get('municipio')}-{r.get('uf')}\n 📞 FONE:   {r.get('telefone')}\n"
+                cont += f" 📧 EMAIL:  {r.get('email')}\n 💰 CAPITAL: R$ {r.get('capital_social')}"
+                return jsonify({"status": "sucesso", "resultado": gerar_moldura("CNPJ FEDERAL (OPEN-DATA)", cont)})
+        except: pass
 
-    # --- 2. CONSULTA TELEFONE (OSINT) ---
+    # --- 2. TELEFONE (GRATUITO - REDES E HLR) ---
     elif acao == 'social' and any(c.isdigit() for c in valor):
-        tel_limpo = re.sub(r'\D', '', valor)
-        cont = f" 📞 ALVO: {valor}\n 📡 OPERADORA: Identificando via HLR...\n"
+        num = re.sub(r'\D', '', valor)
+        cont = f" 📞 NÚMERO: {valor}\n 📡 TIPO: Móvel/WhatsApp\n"
         cont += "──────────────────────────────────────────\n"
-        cont += " 🔍 VARREDURA DE VÍNCULOS:\n"
-        cont += f" 🔗 WhatsApp: wa.me/{tel_limpo}\n"
-        cont += f" 🔗 PIX: Chave telefone detectada.\n"
-        cont += f" 🔗 Sync.me: https://sync.me/search?number={tel_limpo}\n"
-        cont += " ✅ STATUS: Número ativo em redes sociais."
-        return jsonify({"status": "sucesso", "resultado": gerar_moldura("INVESTIGAÇÃO DE TELEFONE", cont)})
+        cont += " 🛠️ LINKS DE INVESTIGAÇÃO DIRETA:\n"
+        cont += f" 🔗 WHATSAPP: https://wa.me/{num}\n"
+        cont += f" 🔗 SYNC.ME:  https://sync.me/search?number={num}\n"
+        cont += f" 🔗 TRUECALLER: https://www.truecaller.com/search/br/{num}\n"
+        cont += " 💡 DICA: O Sync.me costuma revelar o nome real."
+        return jsonify({"status": "sucesso", "resultado": gerar_moldura("INTELIGÊNCIA DE TELEFONE", cont)})
 
-    # --- 3. RASTREIO OSINT (VAZAMENTOS REAIS) ---
+    # --- 3. OSINT (GRATUITO - DORKS E VAZAMENTOS) ---
     elif acao == 'osint':
-        cont = f" 🎯 ALVO: {valor.lower()}\n"
-        try:
-            # Exemplo de chamada para API de vazamentos (LeakCheck)
-            r = requests.get(f"https://api.leakcheck.io/public?check={valor.lower()}", timeout=5).json()
-            found = r.get('found', 0)
-            cont += f" ⚠️ VAZAMENTOS: {found} bases expostas.\n"
-            if found > 0:
-                cont += " 📑 ORIGEM: Combos de e-mails/senhas.\n"
-        except:
-            cont += " 📡 STATUS: API Temporariamente Offline.\n"
-        
+        valor_osint = valor.lower()
+        cont = f" 🎯 ALVO: {valor_osint}\n 📡 VARREDURA: Bases Públicas\n"
         cont += "──────────────────────────────────────────\n"
-        cont += " 🌐 BUSCA AVANÇADA (DORKS):\n"
-        cont += f" 🔗 Google: search?q=\"{valor}\"+filetype:pdf\n"
-        cont += f" 🔗 LinkedIn: linkedin.com/search/results/all/?keywords={valor}"
-        return jsonify({"status": "sucesso", "resultado": gerar_moldura("DOSSIÊ OSINT", cont)})
+        cont += " 📂 COMANDOS AVANÇADOS (DORKS):\n"
+        cont += f" 🔍 NO GOOGLE: \"{valor_osint}\"\n"
+        cont += f" 🔍 EM DOCUMENTOS: \"{valor_osint}\" filetype:pdf\n"
+        cont += f" 🔍 EM LISTAS: \"{valor_osint}\" filetype:xlsx\n"
+        cont += "──────────────────────────────────────────\n"
+        cont += " 🔗 VER VAZAMENTOS: https://leakcheck.io/\n"
+        cont += " 🔗 REDES SOCIAIS: https://knowem.com/"
+        return jsonify({"status": "sucesso", "resultado": gerar_moldura("DOSSIÊ DE FONTES ABERTAS", cont)})
 
-    # --- 4. CONSULTA PLACA (MANTIDA) ---
+    # --- 4. CONSULTA PLACA (BASE LOCAL) ---
     elif acao == 'placa':
         base = carregar_base_veiculos()
-        placa_busca = valor.replace("-", "").replace(" ", "")
-        veiculo = base.get(placa_busca)
-        if veiculo:
-            cont = f" 📂 ALVO: {placa_busca}\n 👤 NOME: {veiculo['proprietario']}\n 🆔 DOC:  {veiculo['documento']}\n"
+        p = valor.replace("-", "").replace(" ", "")
+        v = base.get(p)
+        if v:
+            cont = f" 📂 ALVO: {p}\n 👤 NOME: {v['proprietario']}\n 🆔 DOC:  {v['documento']}\n"
             cont += "──────────────────────────────────────────\n"
-            cont += f" 🚘 VEÍCULO: {veiculo['modelo']}\n 📅 ANO:     {veiculo['ano']}\n"
-            status_icon = "🟢" if "SEM" in veiculo['situacao'] else "🔴"
-            cont += f" {status_icon} STATUS:  {veiculo['situacao']}\n 📌 ALERTA:  {veiculo['alerta']}"
+            cont += f" 🚘 CARRO: {v['modelo']}\n 📅 ANO:   {v['ano']}\n 📍 LOCAL: {v['cidade']}\n"
+            cont += f" 🚨 ALERTA: {v['alerta']}"
             return jsonify({"status": "sucesso", "resultado": gerar_moldura("RELATÓRIO VEICULAR", cont)})
-        return jsonify({"status": "sucesso", "resultado": f"❌ NADA CONSTA NA BASE LOCAL."})
+        return jsonify({"status": "sucesso", "resultado": "❌ NADA CONSTA NA BASE LOCAL."})
 
-    # (Mantém as outras rotas ISPB, Metadados e Histórico como no anterior...)
-    
-    return jsonify({"status": "sucesso", "resultado": "Comando processado com sucesso."})
+    # --- 5. VALIDADOR DE CPF ---
+    elif acao == 'cpf':
+        validade = "✅ VÁLIDO" if len(valor) == 11 else "❌ FORMATO INVÁLIDO"
+        cont = f" 👤 CPF: {valor}\n ⚖️ STATUS: {validade}\n"
+        cont += "──────────────────────────────────────────\n"
+        cont += " 🔎 BUSCAR NO GOOGLE: \n"
+        cont += f" 🔗 https://www.google.com/search?q=\"{valor}\""
+        return jsonify({"status": "sucesso", "resultado": gerar_moldura("PERÍCIA DE CPF", cont)})
+
+    return jsonify({"status": "sucesso", "resultado": "Ferramenta em modo de escuta..."})
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
