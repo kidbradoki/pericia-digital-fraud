@@ -7,7 +7,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# --- PAINEL DE CONTROLE (9 FERRAMENTAS MANTIDAS) ---
+# --- PAINEL DE CONTROLE (9 FERRAMENTAS) ---
 FERRAMENTAS = [
     {"id": "pericia", "nome": "Perícia Visual", "icon": "🔍", "desc": "Layout e autenticidade."},
     {"id": "osint", "nome": "Rastreio OSINT", "icon": "🌐", "desc": "Vazamentos e pegada digital."},
@@ -20,22 +20,17 @@ FERRAMENTAS = [
     {"id": "historico", "nome": "Log de Sessão", "icon": "📜", "desc": "Reincidência de alvos."}
 ]
 
-# Histórico temporário para o Log de Sessão
 historico_consultas = []
 
-# --- FUNÇÃO PARA CARREGAR A BASE EXTERNA ---
 def carregar_base_veiculos():
-    """Tenta ler o arquivo JSON de 5.000 registros"""
     try:
         caminho = os.path.join(os.path.dirname(__file__), 'dados_veiculos.json')
         with open(caminho, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except Exception as e:
-        print(f"Erro ao carregar banco de dados: {e}")
+    except Exception:
         return {}
 
 def validar_cpf_matematico(cpf):
-    """Validação real de dígitos de CPF"""
     cpf = re.sub(r'\D', '', cpf)
     if len(cpf) != 11 or cpf == cpf[0] * 11: return False
     for i in range(9, 11):
@@ -57,67 +52,78 @@ def executar():
     if not valor:
         return jsonify({"status": "erro", "mensagem": "Insira um alvo para análise."})
 
-    # Registra no Log de Sessão
-    historico_consultas.append({
-        "alvo": valor, 
-        "tipo": acao, 
-        "hora": datetime.now().strftime("%H:%M:%S")
-    })
+    historico_consultas.append({"alvo": valor, "tipo": acao, "hora": datetime.now().strftime("%H:%M:%S")})
 
-    # --- LÓGICA DE CONSULTA DE PLACA (DINÂMICA) ---
+    # --- CONSULTA DE PLACA (VISUAL FORENSE) ---
     if acao == 'placa':
         base = carregar_base_veiculos()
-        # Limpa a placa (remove espaços e traços) para a busca no JSON
         placa_busca = valor.replace("-", "").replace(" ", "")
         veiculo = base.get(placa_busca)
 
         if veiculo:
-            res = f"✅ 🚗 RELATÓRIO VEICULAR DETALHADO: {placa_busca}\n"
-            res += "--------------------------------------\n"
-            res += f"👤 PROPRIETÁRIO: {veiculo['proprietario']}\n"
-            res += f"📄 DOCUMENTO: {veiculo['documento']}\n"
-            res += "--------------------------------------\n"
-            res += f"- Marca/Modelo: {veiculo['modelo']}\n"
-            res += f"- Ano/Modelo: {veiculo['ano']}\n"
-            res += f"- Município/UF: {veiculo['cidade']}\n"
-            res += f"- Situação: {veiculo['situacao']}\n"
-            res += f"🚨 ALERTA: {veiculo['alerta']}\n"
-            res += "--------------------------------------\n"
-            res += "⚠️ DICA: Verifique se o proprietário tem vínculo com o destinatário do Pix."
+            res =  "╔════════════════════════════════════════╗\n"
+            res += "║       RELATÓRIO DE INTELIGÊNCIA        ║\n"
+            res += "╚════════════════════════════════════════╝\n"
+            res += f" 📂 ALVO: {placa_busca}\n"
+            res += f" 👤 NOME: {veiculo['proprietario']}\n"
+            res += f" 🆔 DOC:  {veiculo['documento']}\n"
+            res += "──────────────────────────────────────────\n"
+            res += f" 🚘 VEÍCULO: {veiculo['modelo']}\n"
+            res += f" 📅 ANO:     {veiculo['ano']}\n"
+            res += f" 📍 LOCAL:   {veiculo['cidade']}\n"
+            res += "──────────────────────────────────────────\n"
+            status_icon = "🟢" if "SEM RESTRIÇÃO" in veiculo['situacao'] else "🔴"
+            res += f" {status_icon} STATUS:  {veiculo['situacao']}\n"
+            res += f" 📌 ALERTA:  {veiculo['alerta']}\n"
+            res += "──────────────────────────────────────────\n"
+            res += f" 🕒 CONSULTA EM: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
         else:
-            # Caso a placa não esteja no seu JSON
             res = f"❌ NADA CONSTA: O alvo '{valor}' não possui registros ativos nesta base de dados local."
-        
         return jsonify({"status": "sucesso", "resultado": res})
 
-    # --- RASTREIO OSINT (API REAL) ---
+    # --- RASTREIO OSINT (BUSCA AMPLIADA) ---
     elif acao == 'osint':
         try:
             r = requests.get(f"https://api.leakcheck.io/public?check={valor.lower()}", timeout=5).json()
             found = r.get('found', 0)
-            res = f"⚠️ ALERTA: Encontradas {found} exposições públicas para este alvo." if found > 0 else "✅ Nenhuma exposição pública detectada."
+            
+            res =  "🌐 [ VARREDURA OSINT EM ANDAMENTO ]\n"
+            res += "──────────────────────────────────\n"
+            if found > 0:
+                res += f"⚠️ ALERTA CRÍTICO: {found} VAZAMENTOS!\n"
+                res += f"O termo '{valor}' foi exposto em bancos de dados.\n"
+                res += "Sugestão: Verifique 'Have I Been Pwned' para detalhes."
+            else:
+                res += "✅ TERMO LIMPO: Nenhuma exposição pública imediata.\n"
+            
+            res += "\n🔍 PEGADA DIGITAL (SUGESTÕES):\n"
+            res += f"- Sherlock: Analisar user '{valor}' em 300+ redes.\n"
+            res += f"- Maigret: Buscar dossiê completo de '{valor}'."
         except:
-            res = "❌ Erro ao conectar com a base OSINT em tempo real."
+            res = "❌ ERRO: Falha na conexão com os servidores OSINT."
         return jsonify({"status": "sucesso", "resultado": res})
 
     # --- VALIDADOR DE CPF ---
     elif acao == 'cpf':
         validade = "✅ VÁLIDO" if validar_cpf_matematico(valor) else "❌ INVÁLIDO"
-        return jsonify({"status": "sucesso", "resultado": f"Status: {validade}\nA análise de dígitos verificadores foi concluída."})
-
-    # --- FORENSE DE ARQUIVO (MOCK) ---
-    elif acao == 'metadados':
-        detectado = "⚠️ POSSÍVEL EDIÇÃO: Detectados vestígios de manipulação (Canva/PS)." if "CANVA" in valor or "PHOTO" in valor else "✅ Originalidade preservada."
-        return jsonify({"status": "sucesso", "resultado": f"Análise Forense: {detectado}"})
+        res =  "👤 [ VALIDADOR FISCAL ]\n"
+        res += "──────────────────────\n"
+        res += f"ALVO: {valor}\n"
+        res += f"STATUS: {validade}\n"
+        res += "Cálculo de dígitos concluído."
+        return jsonify({"status": "sucesso", "resultado": res})
 
     # --- LOG DE SESSÃO ---
     elif acao == 'historico':
         reincidencias = [h for h in historico_consultas if h['alvo'] == valor]
-        return jsonify({"status": "sucesso", "resultado": f"📜 O alvo '{valor}' foi consultado {len(reincidencias)} vez(es) nesta sessão de investigação."})
+        res =  "📜 [ HISTÓRICO DE INVESTIGAÇÃO ]\n"
+        res += "──────────────────────────────\n"
+        res += f"Alvo: {valor}\n"
+        res += f"Consultas: {len(reincidencias)} vez(es) nesta sessão."
+        return jsonify({"status": "sucesso", "resultado": res})
 
-    return jsonify({"status": "sucesso", "resultado": "Análise concluída com sucesso."})
+    return jsonify({"status": "sucesso", "resultado": "Processando análise técnica..."})
 
 if __name__ == "__main__":
-    # Configuração para rodar no Render ou Localmente
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
