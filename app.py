@@ -3,7 +3,6 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# HTML com o botão do Google mantido para diagnóstico e busca
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -18,19 +17,13 @@ HTML_PAGE = """
             font-family: 'Segoe UI', sans-serif; 
             padding: 20px; 
             text-align: center;
-            overflow-x: hidden;
         }
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-        }
-        .dossie-box { 
+        .box { 
             border: 2px solid #2ea043; 
             border-radius: 12px; 
             padding: 20px; 
             margin-top: 20px; 
             background: #161b22;
-            word-wrap: break-word;
             text-align: left;
         }
         .btn {
@@ -43,44 +36,29 @@ HTML_PAGE = """
             margin-top: 15px;
             text-align: center;
             border: none;
-            cursor: pointer;
         }
-        .btn-neoral { background-color: #238636; color: white; } /* Verde Perícia */
-        .btn-google { background-color: #1f6feb; color: white; }  /* Azul Diagnóstico */
-        
-        .status-tag {
-            background: #238636;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            float: right;
-        }
+        .btn-osint { background-color: #238636; color: white; } /* Verde */
+        .btn-google { background-color: #1f6feb; color: white; }  /* Azul */
+        .alert { color: #f85149; font-size: 0.8rem; margin-top: 10px; text-align: center; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Central de Perícia Digital</h2>
+    <h2>Painel de Perícia Digital</h2>
+    
+    <div class="box">
+        <p style="color: #3fb950; font-weight: bold;">[ RELATÓRIO DISPONÍVEL ]</p>
+        <p>A ferramenta anterior (Neoral) está offline.</p>
+        <p>Use a alternativa abaixo (Epieos) para busca de e-mail/identidade:</p>
         
-        <div class="dossie-box">
-            <span class="status-tag">ATIVO</span>
-            <p style="color: #3fb950; font-weight: bold; margin-bottom: 15px;">[ RELATÓRIO GERADO ]</p>
-            <p>🔎 <b>Varredura:</b> Fontes Abertas</p>
-            <p>📡 <b>Servidor:</b> Render Live</p>
-            <br>
-            
-            <a href="https://osint.neoral.com" target="_blank" class="btn btn-neoral">
-                ABRIR NO NEORAL
-            </a>
+        <a href="https://epieos.com" target="_blank" class="btn btn-osint">
+            ABRIR DOSSIÊ (EPIEOS)
+        </a>
 
-            <a href="https://www.google.com" target="_blank" class="btn btn-google">
-                TESTAR CONEXÃO / GOOGLE
-            </a>
-        </div>
+        <a href="https://www.google.com" target="_blank" class="btn btn-google">
+            BUSCA MANUAL / GOOGLE
+        </a>
         
-        <p style="margin-top: 20px; font-size: 0.7rem; color: #8b949e;">
-            ID da Sessão: 1000072071-GHOST
-        </p>
+        <p class="alert">⚠️ O domínio osint.neoral.com não responde.</p>
     </div>
 </body>
 </html>
@@ -91,6 +69,5 @@ def index():
     return render_template_string(HTML_PAGE)
 
 if __name__ == "__main__":
-    # Garante que a porta seja a correta para o Render
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
