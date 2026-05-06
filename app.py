@@ -3,12 +3,14 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
+# HTML Otimizado e Revisado
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Painel OSINT GHOST</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
@@ -18,29 +20,24 @@ HTML_PAGE = """
             padding: 20px; 
             text-align: center;
         }
-        .container { max-width: 500px; margin: 0 auto; }
+        .container { max-width: 450px; margin: 0 auto; }
         
-        /* Estilização para o novo Logotipo */
-        .logo-container {
-            width: 150px;
-            height: 150px;
-            margin: 0 auto 20px auto;
+        /* Ajuste do Logotipo do Dragão */
+        .logo-box {
+            width: 140px;
+            height: 140px;
+            margin: 0 auto 20px;
             border-radius: 50%;
+            border: 3px solid #2ea043;
             overflow: hidden;
-            border: 3px solid #2ea043; /* Borda verde para combinar com o tema */
-            box-shadow: 0 0 15px rgba(46, 160, 67, 0.5);
+            box-shadow: 0 0 20px rgba(46, 160, 67, 0.4);
         }
-        .logo-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+        .logo-box img { width: 100%; height: 100%; object-fit: cover; }
         
         .box { 
-            border: 2px solid #2ea043; 
+            border: 2px solid #30363d; 
             border-radius: 12px; 
             padding: 15px; 
-            margin-top: 15px; 
             background: #161b22;
             text-align: left;
         }
@@ -54,58 +51,64 @@ HTML_PAGE = """
             font-weight: bold;
             margin-top: 10px;
             text-align: center;
-            border: none;
             color: white;
             font-size: 0.9rem;
+            transition: opacity 0.2s;
         }
 
-        /* Cores Temáticas */
-        .btn-epieos { background-color: #238636; } /* Verde - E-mails */
-        .btn-intelx { background-color: #8957e5; } /* Roxo - Vazamentos */
-        .btn-social { background-color: #d29922; } /* Laranja - Social */
-        .btn-ip { background-color: #f85149; }     /* Vermelho - IP/Geo */
-        .btn-cnpj { background-color: #0969da; }   /* Azul Escuro - CNPJ */
-        .btn-google { background-color: #1f6feb; } /* Azul - Busca */
+        /* Paleta de Cores revisada */
+        .btn-epieos { background-color: #238636; }
+        .btn-intelx { background-color: #8957e5; }
+        .btn-social { background-color: #d29922; }
+        .btn-ip { background-color: #f85149; }
+        .btn-cnpj { background-color: #0969da; }
+        .btn-google { background-color: #30363d; border: 1px solid #8b949e; }
         
-        h2 { margin-bottom: 5px; font-size: 1.4rem; color: #3fb950; }
-        .desc { font-size: 0.8rem; color: #8b949e; margin-bottom: 4px; margin-top: 12px; font-weight: bold; }
+        h2 { color: #3fb950; margin-bottom: 5px; font-size: 1.3rem; }
+        .label { font-size: 0.75rem; color: #8b949e; margin-top: 10px; font-weight: bold; display: block; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="logo-container">
-            <img src="https://raw.githubusercontent.com/kidbradoki/pericia-digital-fraud/main/OSINT.png" alt="Logotipo OSINT Dragão de Fogo">
+        <div class="logo-box">
+            <img src="https://raw.githubusercontent.com/kidbradoki/pericia-digital-fraud/main/OSINT.png" alt="Ghost Logo">
         </div>
         
-        <h2>Painel de Perícia Digital</h2>
-        <p style="font-size: 0.8rem; color: #c9d1d9;">[ GHOST - OPERAÇÃO OSINT ]</p>
+        <h2>Painel de Perícia</h2>
+        <p style="font-size: 0.8rem; margin-bottom: 15px;">[ STATUS: OPERACIONAL ]</p>
         
         <div class="box">
-            <p class="desc">🔎 E-mail e Identidade:</p>
+            <span class="label">IDENTIDADE & EMAIL:</span>
             <a href="https://epieos.com" target="_blank" class="btn btn-epieos">EPIEOS</a>
 
-            <p class="desc">🗄️ Dados e Vazamentos:</p>
+            <span class="label">VAZAMENTOS & DEEP WEB:</span>
             <a href="https://intelx.io" target="_blank" class="btn btn-intelx">INTELX</a>
 
-            <p class="desc">📱 Redes Sociais:</p>
-            <a href="https://www.social-searcher.com" target="_blank" class="btn btn-social">SOCIAL-SEARCHER</a>
+            <span class="label">REDES SOCIAIS:</span>
+            <a href="https://www.social-searcher.com" target="_blank" class="btn btn-social">SOCIAL SEARCHER</a>
 
-            <p class="desc">📍 Rastreio de IP e Geo:</p>
-            <a href="https://ip-api.com" target="_blank" class="btn btn-ip">IP-API (LOCALIZAÇÃO)</a>
+            <span class="label">IP & GEOLOCALIZAÇÃO:</span>
+            <a href="https://ip-api.com" target="_blank" class="btn btn-ip">IP-API</a>
 
-            <p class="desc">🏢 Consulta de Empresas (CNPJ):</p>
+            <span class="label">EMPRESAS & SOCIEDADE:</span>
             <a href="https://cnpj.biz" target="_blank" class="btn btn-cnpj">CNPJ.BIZ</a>
 
-            <p class="desc">🌐 Diagnóstico e Busca:</p>
+            <span class="label">DIAGNÓSTICO:</span>
             <a href="https://www.google.com" target="_blank" class="btn btn-google">GOOGLE SEARCH</a>
         </div>
         
-        <p style="margin-top: 15px; font-size: 0.65rem; color: #484f58;">Sistema Operacional Ghost | Versão 2.1</p>
+        <p style="margin-top: 20px; font-size: 0.6rem; color: #484f58;">PERÍCIA DIGITAL © 2026</p>
     </div>
 </body>
 </html>
 """
 
+# Rota principal revisada para evitar o erro 'Not Found'
+@app.route('/')
+def index():
+    return render_template_string(HTML_PAGE)
+
 if __name__ == "__main__":
+    # Ajuste automático de porta para o ambiente Render
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
