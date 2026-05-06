@@ -33,7 +33,6 @@ HTML_PAGE = """
         .btn-cnpj { background-color: #0969da; }
         .btn-google { background-color: #30363d; border: 1px solid #8b949e; }
         h2 { color: #3fb950; margin-bottom: 5px; font-size: 1.3rem; }
-        .label { font-size: 0.75rem; color: #8b949e; margin-top: 10px; font-weight: bold; display: block; }
     </style>
 </head>
 <body>
@@ -42,19 +41,12 @@ HTML_PAGE = """
             <img src="https://raw.githubusercontent.com/kidbradoki/pericia-digital-fraud/main/OSINT.jpg" alt="Ghost Logo">
         </div>
         <h2>Painel de Perícia</h2>
-        <p style="font-size: 0.8rem; margin-bottom: 15px;">[ STATUS: OPERACIONAL ]</p>
         <div class="box">
-            <span class="label">IDENTIDADE & EMAIL:</span>
             <a href="https://epieos.com" target="_blank" class="btn btn-epieos">EPIEOS</a>
-            <span class="label">VAZAMENTOS & DEEP WEB:</span>
             <a href="https://intelx.io" target="_blank" class="btn btn-intelx">INTELX</a>
-            <span class="label">REDES SOCIAIS:</span>
             <a href="https://www.social-searcher.com" target="_blank" class="btn btn-social">SOCIAL SEARCHER</a>
-            <span class="label">IP & GEOLOCALIZAÇÃO:</span>
             <a href="https://ip-api.com" target="_blank" class="btn btn-ip">IP-API</a>
-            <span class="label">EMPRESAS & SOCIEDADE:</span>
             <a href="https://cnpj.biz" target="_blank" class="btn btn-cnpj">CNPJ.BIZ</a>
-            <span class="label">DIAGNÓSTICO:</span>
             <a href="https://www.google.com" target="_blank" class="btn btn-google">GOOGLE SEARCH</a>
         </div>
     </div>
