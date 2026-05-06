@@ -3,7 +3,7 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# Este código une o layout com a sua foto OSINT.jpg
+# Layout direto e com o link correto para OSINT.jpg
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -63,9 +63,8 @@ HTML_PAGE = """
 </html>
 """
 
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def catch_all(path):
+@app.route('/')
+def index():
     return render_template_string(HTML_PAGE)
 
 if __name__ == "__main__":
