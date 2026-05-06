@@ -3,6 +3,7 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
+# Versão estável sem foto para garantir o funcionamento no Render
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -52,24 +53,24 @@ HTML_PAGE = """
     <div class="container">
         <div class="header">
             <h2>Painel OSINT GHOST</h2>
-            <p style="font-size: 0.8rem; color: #8b949e;">Status: Operacional</p>
+            <p style="font-size: 0.8rem; color: #8b949e;">[ STATUS: PROTEGIDO ]</p>
         </div>
         
         <div class="box">
-            <span class="label">IDENTIDADE & EMAIL:</span>
+            <span class="label">INVESTIGAÇÃO & EMAIL:</span>
             <a href="https://epieos.com" target="_blank" class="btn btn-green">EPIEOS</a>
             <a href="https://intelx.io" target="_blank" class="btn btn-purple">INTELX</a>
 
             <span class="label">REDES SOCIAIS:</span>
             <a href="https://www.social-searcher.com" target="_blank" class="btn btn-orange">SOCIAL SEARCHER</a>
 
-            <span class="label">DADOS CORPORATIVOS:</span>
+            <span class="label">DADOS EMPRESARIAIS:</span>
             <a href="https://cnpj.biz" target="_blank" class="btn btn-blue">CNPJ.BIZ</a>
 
-            <span class="label">BUSCA GERAL:</span>
+            <span class="label">BUSCA AVANÇADA:</span>
             <a href="https://www.google.com" target="_blank" class="btn btn-dark">GOOGLE SEARCH</a>
         </div>
-        <p style="margin-top: 30px; font-size: 0.6rem; color: #484f58;">PERÍCIA DIGITAL V2.1</p>
+        <p style="margin-top: 30px; font-size: 0.6rem; color: #484f58;">PERÍCIA DIGITAL V2.2</p>
     </div>
 </body>
 </html>
