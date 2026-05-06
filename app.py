@@ -41,6 +41,7 @@ HTML_PAGE = """
         }
         .btn-green { background-color: #238636; }
         .btn-purple { background-color: #8957e5; }
+        .btn-orange { background-color: #d29922; }
         .btn-blue { background-color: #0969da; }
         .btn-dark { background-color: #30363d; border: 1px solid #8b949e; }
         h2 { color: #3fb950; }
@@ -51,13 +52,16 @@ HTML_PAGE = """
     <div class="container">
         <div class="header">
             <h2>Painel OSINT GHOST</h2>
-            <p style="font-size: 0.8rem; color: #8b949e;">Acesso Restrito</p>
+            <p style="font-size: 0.8rem; color: #8b949e;">Status: Operacional</p>
         </div>
         
         <div class="box">
-            <span class="label">INVESTIGAÇÃO:</span>
+            <span class="label">IDENTIDADE & EMAIL:</span>
             <a href="https://epieos.com" target="_blank" class="btn btn-green">EPIEOS</a>
             <a href="https://intelx.io" target="_blank" class="btn btn-purple">INTELX</a>
+
+            <span class="label">REDES SOCIAIS:</span>
+            <a href="https://www.social-searcher.com" target="_blank" class="btn btn-orange">SOCIAL SEARCHER</a>
 
             <span class="label">DADOS CORPORATIVOS:</span>
             <a href="https://cnpj.biz" target="_blank" class="btn btn-blue">CNPJ.BIZ</a>
@@ -65,7 +69,7 @@ HTML_PAGE = """
             <span class="label">BUSCA GERAL:</span>
             <a href="https://www.google.com" target="_blank" class="btn btn-dark">GOOGLE SEARCH</a>
         </div>
-        <p style="margin-top: 30px; font-size: 0.6rem; color: #484f58;">SISTEMA OPERACIONAL V2.0</p>
+        <p style="margin-top: 30px; font-size: 0.6rem; color: #484f58;">PERÍCIA DIGITAL V2.1</p>
     </div>
 </body>
 </html>
