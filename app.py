@@ -20,6 +20,22 @@ HTML_PAGE = """
         }
         .container { max-width: 500px; margin: 0 auto; }
         
+        /* Estilização para o novo Logotipo */
+        .logo-container {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 20px auto;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 3px solid #2ea043; /* Borda verde para combinar com o tema */
+            box-shadow: 0 0 15px rgba(46, 160, 67, 0.5);
+        }
+        .logo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
         .box { 
             border: 2px solid #2ea043; 
             border-radius: 12px; 
@@ -51,14 +67,18 @@ HTML_PAGE = """
         .btn-cnpj { background-color: #0969da; }   /* Azul Escuro - CNPJ */
         .btn-google { background-color: #1f6feb; } /* Azul - Busca */
         
-        h2 { margin-bottom: 5px; font-size: 1.4rem; }
+        h2 { margin-bottom: 5px; font-size: 1.4rem; color: #3fb950; }
         .desc { font-size: 0.8rem; color: #8b949e; margin-bottom: 4px; margin-top: 12px; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
+        <div class="logo-container">
+            <img src="https://raw.githubusercontent.com/kidbradoki/pericia-digital-fraud/main/OSINT.png" alt="Logotipo OSINT Dragão de Fogo">
+        </div>
+        
         <h2>Painel de Perícia Digital</h2>
-        <p style="font-size: 0.8rem; color: #3fb950;">[ GHOST - FULL OSINT PACK ]</p>
+        <p style="font-size: 0.8rem; color: #c9d1d9;">[ GHOST - OPERAÇÃO OSINT ]</p>
         
         <div class="box">
             <p class="desc">🔎 E-mail e Identidade:</p>
@@ -80,15 +100,11 @@ HTML_PAGE = """
             <a href="https://www.google.com" target="_blank" class="btn btn-google">GOOGLE SEARCH</a>
         </div>
         
-        <p style="margin-top: 15px; font-size: 0.65rem; color: #484f58;">Sistema Operacional Ghost | Versão 2.0</p>
+        <p style="margin-top: 15px; font-size: 0.65rem; color: #484f58;">Sistema Operacional Ghost | Versão 2.1</p>
     </div>
 </body>
 </html>
 """
-
-@app.route('/')
-def index():
-    return render_template_string(HTML_PAGE)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
