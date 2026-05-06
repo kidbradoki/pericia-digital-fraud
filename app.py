@@ -3,7 +3,6 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# Layout direto e com o link correto para OSINT.jpg
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="pt-br">
