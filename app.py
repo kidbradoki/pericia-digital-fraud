@@ -3,7 +3,7 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# O HTML está nesta variável. A linha da imagem é a 44.
+# Este código une o layout com a sua foto OSINT.jpg
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="pt-br">
