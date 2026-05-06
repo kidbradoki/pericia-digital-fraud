@@ -1,117 +1,130 @@
-from flask import Flask, render_template, request, jsonify
-import re
-import os
-import requests
-import json
-from datetime import datetime
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Central de Perícia Digital</title>
+    <style>
+        /* MANTENDO SEU DESIGN DARK E CORRIGINDO PROPORÇÃO */
+        * {
+            box-sizing: border-box; 
+            margin: 0;
+            padding: 0;
+        }
 
-app = Flask(__name__)
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden; /* Evita que o site "dance" para os lados */
+            width: 100vw;
+            padding: 15px;
+        }
 
-# --- PAINEL DE CONTROLE ---
-FERRAMENTAS = [
-    {"id": "pericia", "nome": "Perícia Visual", "icon": "🔍", "desc": "Layout e autenticidade."},
-    {"id": "osint", "nome": "Rastreio OSINT", "icon": "🌐", "desc": "Vazamentos e pegada digital."},
-    {"id": "bancos", "nome": "Vínculos Bancários", "icon": "🏦", "desc": "Busca de contas por CPF."},
-    {"id": "cpf", "nome": "Validador de CPF/CNPJ", "icon": "👤", "desc": "Receita e região fiscal."},
-    {"id": "metadados", "nome": "Forense de Arquivo", "icon": "📁", "desc": "Análise de edição (Canva/PS)."},
-    {"id": "ispb", "nome": "Consulta ISPB", "icon": "🏛️", "desc": "Base oficial Banco Central."},
-    {"id": "social", "nome": "Telefone/Redes", "icon": "📱", "desc": "Investigar perfis e números."},
-    {"id": "placa", "nome": "Consulta Placa", "icon": "🚗", "desc": "Dados e Nome do Proprietário."},
-    {"id": "historico", "nome": "Log de Sessão", "icon": "📜", "desc": "Reincidência de alvos."}
-]
+        h1 {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #ffffff;
+        }
 
-historico_consultas = []
+        /* CARD DE CADA FERRAMENTA */
+        .ferramenta-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            width: 100%; /* Garante que ocupe a tela toda sem vazar */
+        }
 
-def carregar_base_veiculos():
-    try:
-        caminho = os.path.join(os.path.dirname(__file__), 'dados_veiculos.json')
-        with open(caminho, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception: return {}
+        /* O QUE VOCÊ CHAMA DE 'LINHAS VERDES' (DOSSIÊ) */
+        .dossie-box {
+            border: 2px solid #2ea043; /* O contorno verde que você quer */
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 15px;
+            background: #0d1117;
+            word-wrap: break-word; /* FORÇA O TEXTO A QUEBRAR A LINHA */
+            overflow-wrap: break-word;
+            font-family: monospace; /* Estilo hacker/investigação */
+            font-size: 0.9rem;
+        }
 
-def gerar_moldura(titulo, conteudo):
-    res =  "╔════════════════════════════════════════╗\n"
-    res += f"║ {titulo.center(38)} ║\n"
-    res += "╚════════════════════════════════════════╝\n"
-    res += conteudo
-    res += "\n──────────────────────────────────────────\n"
-    res += f" 🕒 LOG: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
-    return res
+        .titulo-verde {
+            color: #3fb950;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #2ea043;
+            padding-bottom: 5px;
+        }
 
-@app.route('/')
-def index():
-    return render_template('index.html', ferramentas=FERRAMENTAS)
+        /* LINK CLICÁVEL DO OSINT NEORAL */
+        .link-click {
+            color: #58a6ff;
+            text-decoration: underline;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 10px;
+            word-break: break-all;
+        }
 
-@app.route('/api/executar', methods=['POST'])
-def executar():
-    dados = request.json
-    acao = dados.get('acao')
-    valor = dados.get('valor', '').strip().upper()
-    if not valor: return jsonify({"status": "erro", "mensagem": "Insira um alvo."})
+        .link-click:hover {
+            color: #1f6feb;
+        }
 
-    historico_consultas.append({"alvo": valor, "tipo": acao, "hora": datetime.now().strftime("%H:%M:%S")})
+        /* BOTÃO INICIAR ANÁLISE */
+        .btn-analise {
+            background-color: #238636;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            width: 100%;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
 
-    # --- 1. CONSULTA CNPJ (GRATUITA - RECEITA WS) ---
-    if acao == 'cpf' and len(re.sub(r'\D', '', valor)) > 11:
-        cnpj = re.sub(r'\D', '', valor)
-        try:
-            r = requests.get(f"https://receitaws.com.br/v1/cnpj/{cnpj}", timeout=5).json()
-            if r.get('status') == 'OK':
-                cont = f" 🏢 RAZÃO: {r.get('nome')}\n 🆔 CNPJ:  {valor}\n 📅 INÍCIO: {r.get('abertura')}\n"
-                cont += f" 📍 CIDADE: {r.get('municipio')}-{r.get('uf')}\n 📞 FONE:   {r.get('telefone')}\n"
-                cont += f" 📧 EMAIL:  {r.get('email')}\n 💰 CAPITAL: R$ {r.get('capital_social')}"
-                return jsonify({"status": "sucesso", "resultado": gerar_moldura("CNPJ FEDERAL (OPEN-DATA)", cont)})
-        except: pass
+        input[type="text"], input[type="email"] {
+            width: 100%;
+            padding: 10px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            color: white;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
 
-    # --- 2. TELEFONE (GRATUITO - REDES E HLR) ---
-    elif acao == 'social' and any(c.isdigit() for c in valor):
-        num = re.sub(r'\D', '', valor)
-        cont = f" 📞 NÚMERO: {valor}\n 📡 TIPO: Móvel/WhatsApp\n"
-        cont += "──────────────────────────────────────────\n"
-        cont += " 🛠️ LINKS DE INVESTIGAÇÃO DIRETA:\n"
-        cont += f" 🔗 WHATSAPP: https://wa.me/{num}\n"
-        cont += f" 🔗 SYNC.ME:  https://sync.me/search?number={num}\n"
-        cont += f" 🔗 TRUECALLER: https://www.truecaller.com/search/br/{num}\n"
-        cont += " 💡 DICA: O Sync.me costuma revelar o nome real."
-        return jsonify({"status": "sucesso", "resultado": gerar_moldura("INTELIGÊNCIA DE TELEFONE", cont)})
+    <h1>Central de Perícia Digital</h1>
 
-    # --- 3. OSINT (GRATUITO - DORKS E VAZAMENTOS) ---
-    elif acao == 'osint':
-        valor_osint = valor.lower()
-        cont = f" 🎯 ALVO: {valor_osint}\n 📡 VARREDURA: Bases Públicas\n"
-        cont += "──────────────────────────────────────────\n"
-        cont += " 📂 COMANDOS AVANÇADOS (DORKS):\n"
-        cont += f" 🔍 NO GOOGLE: \"{valor_osint}\"\n"
-        cont += f" 🔍 EM DOCUMENTOS: \"{valor_osint}\" filetype:pdf\n"
-        cont += f" 🔍 EM LISTAS: \"{valor_osint}\" filetype:xlsx\n"
-        cont += "──────────────────────────────────────────\n"
-        cont += " 🔗 VER VAZAMENTOS: https://leakcheck.io/\n"
-        cont += " 🔗 REDES SOCIAIS: https://knowem.com/"
-        return jsonify({"status": "sucesso", "resultado": gerar_moldura("DOSSIÊ DE FONTES ABERTAS", cont)})
+    <div class="ferramenta-card">
+        <h3>🔍 Rastreio OSINT</h3>
+        <p style="font-size: 0.8rem; margin-bottom: 10px; color: #8b949e;">
+            Insira o @usuario ou e-mail para rastrear pegadas digitais.
+        </p>
+        
+        <input type="text" placeholder="Insira os dados para perícia...">
+        <button class="btn-analise">INICIAR ANÁLISE</button>
 
-    # --- 4. CONSULTA PLACA (BASE LOCAL) ---
-    elif acao == 'placa':
-        base = carregar_base_veiculos()
-        p = valor.replace("-", "").replace(" ", "")
-        v = base.get(p)
-        if v:
-            cont = f" 📂 ALVO: {p}\n 👤 NOME: {v['proprietario']}\n 🆔 DOC:  {v['documento']}\n"
-            cont += "──────────────────────────────────────────\n"
-            cont += f" 🚘 CARRO: {v['modelo']}\n 📅 ANO:   {v['ano']}\n 📍 LOCAL: {v['cidade']}\n"
-            cont += f" 🚨 ALERTA: {v['alerta']}"
-            return jsonify({"status": "sucesso", "resultado": gerar_moldura("RELATÓRIO VEICULAR", cont)})
-        return jsonify({"status": "sucesso", "resultado": "❌ NADA CONSTA NA BASE LOCAL."})
+        <div class="dossie-box">
+            <div class="titulo-verde">Dossiê de Fontes Abertas</div>
+            <p>✅ <strong>ALVO:</strong> kidbradoki@gmail.com</p>
+            <p>🔎 <strong>VARREDURA:</strong> Bases Públicas</p>
+            <br>
+            <p>🌐 <strong>LINK PARA RELATÓRIO:</strong></p>
+            <a href="https://osint.neoral.com" target="_blank" class="link-click">
+                https://osint.neoral.com
+            </a>
+            <br><br>
+            <p style="font-size: 0.7rem; color: #8b949e;">LOG: 06/05/2026 01:56:06</p>
+        </div>
+    </div>
 
-    # --- 5. VALIDADOR DE CPF ---
-    elif acao == 'cpf':
-        validade = "✅ VÁLIDO" if len(valor) == 11 else "❌ FORMATO INVÁLIDO"
-        cont = f" 👤 CPF: {valor}\n ⚖️ STATUS: {validade}\n"
-        cont += "──────────────────────────────────────────\n"
-        cont += " 🔎 BUSCAR NO GOOGLE: \n"
-        cont += f" 🔗 https://www.google.com/search?q=\"{valor}\""
-        return jsonify({"status": "sucesso", "resultado": gerar_moldura("PERÍCIA DE CPF", cont)})
-
-    return jsonify({"status": "sucesso", "resultado": "Ferramenta em modo de escuta..."})
-
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+    </body>
+</html>
