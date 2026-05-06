@@ -3,7 +3,7 @@ from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# HTML com o Kit OSINT Completo
+# Layout Blindado com Ferramentas Ativas
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -41,13 +41,12 @@ HTML_PAGE = """
             text-align: center;
             border: none;
             color: white;
-            transition: 0.3s;
         }
 
-        /* Cores das Ferramentas */
+        /* Cores das Ferramentas Ativas */
         .btn-epieos { background-color: #238636; } /* Verde - E-mails */
-        .btn-intelx { background-color: #8957e5; } /* Roxo - Dados/Vazamentos */
-        .btn-sherlock { background-color: #d29922; } /* Laranja - Redes Sociais */
+        .btn-intelx { background-color: #8957e5; } /* Roxo - Vazamentos */
+        .btn-social { background-color: #d29922; } /* Laranja - Redes Sociais (Alternativa ao Sherlock) */
         .btn-google { background-color: #1f6feb; } /* Azul - Busca/Diagnóstico */
         
         h2 { margin-bottom: 10px; font-size: 1.4rem; }
@@ -57,7 +56,7 @@ HTML_PAGE = """
 <body>
     <div class="container">
         <h2>Painel de Perícia Digital</h2>
-        <p style="font-size: 0.8rem; color: #3fb950;">[ GHOST - OPERAÇÃO OSINT ]</p>
+        <p style="font-size: 0.8rem; color: #3fb950;">[ GHOST - SISTEMA OPERACIONAL ]</p>
         
         <div class="box">
             <p class="desc">🔎 Busca por E-mail e Identidade:</p>
@@ -66,14 +65,14 @@ HTML_PAGE = """
             <p class="desc">🗄️ Vazamentos e Dados Históricos:</p>
             <a href="https://intelx.io" target="_blank" class="btn btn-intelx">ABRIR INTELX</a>
 
-            <p class="desc">📱 Investigação de Redes Sociais:</p>
-            <a href="https://sherlockid.com" target="_blank" class="btn btn-sherlock">ABRIR SHERLOCK WEB</a>
+            <p class="desc">📱 Monitoramento de Redes Sociais:</p>
+            <a href="https://www.social-searcher.com" target="_blank" class="btn btn-social">ABRIR SOCIAL-SEARCHER</a>
 
-            <p class="desc">🌐 Teste de Conexão e Pesquisa:</p>
-            <a href="https://www.google.com" target="_blank" class="btn btn-google">BUSCA MANUAL NO GOOGLE</a>
+            <p class="desc">🌐 Busca Manual e Diagnóstico:</p>
+            <a href="https://www.google.com" target="_blank" class="btn btn-google">BUSCA NO GOOGLE</a>
         </div>
         
-        <p style="margin-top: 15px; font-size: 0.7rem; color: #484f58;">Status: Servidor Render Live</p>
+        <p style="margin-top: 15px; font-size: 0.7rem; color: #484f58;">Status: Servidor Render Live | Porta 10000</p>
     </div>
 </body>
 </html>
@@ -84,6 +83,5 @@ def index():
     return render_template_string(HTML_PAGE)
 
 if __name__ == "__main__":
-    # Configuração de porta para o Render
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
