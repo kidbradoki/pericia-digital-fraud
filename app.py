@@ -6,7 +6,7 @@ UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER): os.makedirs(UPLOAD_FOLDER)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# HTML Mantido - Ajustado para aceitar apenas PDF
+# HTML Mantido - Layout Lado a Lado conforme sua aprovação
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -76,12 +76,12 @@ def motor_analise(caminho):
         return {"status": "A", "titulo": "⚠️ ERRO DE LEITURA", "mensagem": "Arquivo corrompido ou protegido.", "dados": str(e)}
 
     if not texto.strip(): 
-        return {"status": "A", "titulo": "⚠️ DOC "MUDO"", "mensagem": "O PDF é apenas uma imagem. Requer revisão manual.", "dados": "N/A"}
+        return {"status": "A", "titulo": "⚠️ DOC ILEGÍVEL", "mensagem": "O PDF é uma imagem ou está vazio.", "dados": "N/A"}
     
     txt_l = " ".join(texto.split())
     res = txt_l[:500] + "..." if len(txt_l) > 500 else txt_l
 
-    # Classificação
+    # Lógica de Classificação
     if any(x in texto for x in ["PIX", "TRANSACAO", "COMPROVANTE"]):
         status = "A" if "AGENDAMENTO" in texto else "O"
         tit = "⚠️ GOLPE: PIX AGENDADO" if status == "A" else "✅ PIX IDENTIFICADO"
@@ -93,10 +93,11 @@ def motor_analise(caminho):
     if any(x in texto for x in ["REGISTRO GERAL", "CNH", "CPF", "IDENTIDADE", "CERTIDAO", "TRIBUNAL"]):
         return {"status": "O", "titulo": "✅ DOCUMENTO PESSOAL", "mensagem": "Dados de identificação.", "dados": res}
 
-    return {"status": "A", "titulo": "⚠️ DOC DESCONHECIDO", "mensagem": "Texto extraído. Avalie o conteúdo.", "dados": res}
+    return {"status": "A", "titulo": "⚠️ DOC DESCONHECIDO", "mensagem": "Texto extraído para análise manual.", "dados": res}
 
 @app.route('/')
-def index(): return render_template_string(HTML_PAGE)
+def index():
+    return render_template_string(HTML_PAGE)
 
 @app.route('/analisar', methods=['POST'])
 def upload_analise():
