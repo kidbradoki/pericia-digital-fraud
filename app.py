@@ -1,16 +1,12 @@
-import os, re, pypdf, easyocr
-import numpy as np
+import os, re, pypdf
 from flask import Flask, render_template_string, request, redirect
-from PIL import Image
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER): os.makedirs(UPLOAD_FOLDER)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Inicializa o leitor apenas uma vez para economizar memória (Português e Inglês)
-reader = easyocr.Reader(['pt', 'en'], gpu=False)
-
+# HTML Mantido - Ajustado para aceitar apenas PDF
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -34,7 +30,7 @@ HTML_PAGE = """
     </style>
 </head>
 <body>
-    <h2>CENTRAL GHOST v5.6 EASY-OCR</h2>
+    <h2>CENTRAL GHOST v5.7 LITE</h2>
     <div class="flex-container">
         <div class="box-mini">
             <h3>MOD 01: BUSCA</h3>
@@ -49,16 +45,16 @@ HTML_PAGE = """
             <a href="https://www.google.com" target="_blank" class="btn btn-dark">GOOGLE</a>
         </div>
         <div class="box-full">
-            <h3>MOD 03: ANALISADOR HÍBRIDO</h3>
+            <h3>MOD 03: FORENSE DIGITAL (PDF)</h3>
             <form action="/analisar" method="post" enctype="multipart/form-data">
-                <input type="file" name="file" accept=".pdf, .jpg, .jpeg, .png" style="font-size:0.6rem; margin: 10px 0; color:#8b949e;" required>
+                <input type="file" name="file" accept=".pdf" style="font-size:0.6rem; margin: 10px 0; color:#8b949e;" required>
                 <button type="submit" class="btn btn-green" style="font-size: 0.8rem; padding: 15px;">ESCANEAR DOCUMENTO</button>
             </form>
             {% if r %}
             <div class="status-badge {{ 'fraude' if r.status == 'A' else 'real' }}">
                 {{ r.titulo }}
                 <p style="font-size: 0.6rem; font-weight: normal; margin-top:5px;">{{ r.mensagem }}</p>
-                <div class="dados-container"><strong>SCANNER DATA:</strong><br><br>{{ r.dados }}</div>
+                <div class="dados-container"><strong>DADOS EXTRAÍDOS:</strong><br><br>{{ r.dados }}</div>
             </div>
             {% endif %}
         </div>
@@ -71,32 +67,21 @@ HTML_PAGE = """
 def motor_analise(caminho):
     texto = ""
     try:
-        ext = caminho.lower().split('.')[-1]
-        
-        # 1. Se for PDF, tenta extração digital
-        if ext == 'pdf':
-            with open(caminho, "rb") as f:
-                pdf = pypdf.PdfReader(f)
-                for pg in pdf.pages:
-                    t = pg.extract_text()
-                    if t: texto += t.upper() + " "
-        
-        # 2. Se for imagem ou PDF sem texto, usa EasyOCR
-        if not texto.strip() or ext in ['jpg', 'jpeg', 'png']:
-            # Se for imagem direta, carrega. Se for PDF, o motor ignora (aqui aceitamos fotos direto)
-            if ext in ['jpg', 'jpeg', 'png']:
-                resultado = reader.readtext(caminho, detail=0)
-                texto = " ".join(resultado).upper()
-
+        with open(caminho, "rb") as f:
+            pdf = pypdf.PdfReader(f)
+            for pg in pdf.pages:
+                ext = pg.extract_text()
+                if ext: texto += ext.upper() + " "
     except Exception as e:
-        return {"status": "A", "titulo": "⚠️ ERRO DE MOTOR", "mensagem": "Falha no processamento EasyOCR.", "dados": str(e)}
+        return {"status": "A", "titulo": "⚠️ ERRO DE LEITURA", "mensagem": "Arquivo corrompido ou protegido.", "dados": str(e)}
 
-    if not texto.strip(): return {"status": "A", "titulo": "⚠️ VAZIO", "mensagem": "Nenhum texto detectado.", "dados": "N/A"}
+    if not texto.strip(): 
+        return {"status": "A", "titulo": "⚠️ DOC "MUDO"", "mensagem": "O PDF é apenas uma imagem. Requer revisão manual.", "dados": "N/A"}
     
     txt_l = " ".join(texto.split())
     res = txt_l[:500] + "..." if len(txt_l) > 500 else txt_l
 
-    # Lógica de Classificação Permanente
+    # Classificação
     if any(x in texto for x in ["PIX", "TRANSACAO", "COMPROVANTE"]):
         status = "A" if "AGENDAMENTO" in texto else "O"
         tit = "⚠️ GOLPE: PIX AGENDADO" if status == "A" else "✅ PIX IDENTIFICADO"
@@ -108,7 +93,7 @@ def motor_analise(caminho):
     if any(x in texto for x in ["REGISTRO GERAL", "CNH", "CPF", "IDENTIDADE", "CERTIDAO", "TRIBUNAL"]):
         return {"status": "O", "titulo": "✅ DOCUMENTO PESSOAL", "mensagem": "Dados de identificação.", "dados": res}
 
-    return {"status": "A", "titulo": "⚠️ ANALISE MANUAL", "mensagem": "Texto extraído via OCR.", "dados": res}
+    return {"status": "A", "titulo": "⚠️ DOC DESCONHECIDO", "mensagem": "Texto extraído. Avalie o conteúdo.", "dados": res}
 
 @app.route('/')
 def index(): return render_template_string(HTML_PAGE)
