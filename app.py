@@ -1,12 +1,15 @@
-import os, re, pypdf, pytesseract
+import os, re, pypdf, easyocr
+import numpy as np
 from flask import Flask, render_template_string, request, redirect
-from pdf2image import convert_from_path
 from PIL import Image
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER): os.makedirs(UPLOAD_FOLDER)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Inicializa o leitor apenas uma vez para economizar memória (Português e Inglês)
+reader = easyocr.Reader(['pt', 'en'], gpu=False)
 
 HTML_PAGE = """
 <!DOCTYPE html>
@@ -31,7 +34,7 @@ HTML_PAGE = """
     </style>
 </head>
 <body>
-    <h2>CENTRAL GHOST v5.5 FINAL</h2>
+    <h2>CENTRAL GHOST v5.6 EASY-OCR</h2>
     <div class="flex-container">
         <div class="box-mini">
             <h3>MOD 01: BUSCA</h3>
@@ -46,16 +49,16 @@ HTML_PAGE = """
             <a href="https://www.google.com" target="_blank" class="btn btn-dark">GOOGLE</a>
         </div>
         <div class="box-full">
-            <h3>MOD 03: ANALISADOR (MULTI-FORMATO)</h3>
+            <h3>MOD 03: ANALISADOR HÍBRIDO</h3>
             <form action="/analisar" method="post" enctype="multipart/form-data">
                 <input type="file" name="file" accept=".pdf, .jpg, .jpeg, .png" style="font-size:0.6rem; margin: 10px 0; color:#8b949e;" required>
-                <button type="submit" class="btn btn-green" style="font-size: 0.8rem; padding: 15px;">ESCANEAR E ANALISAR</button>
+                <button type="submit" class="btn btn-green" style="font-size: 0.8rem; padding: 15px;">ESCANEAR DOCUMENTO</button>
             </form>
             {% if r %}
             <div class="status-badge {{ 'fraude' if r.status == 'A' else 'real' }}">
                 {{ r.titulo }}
                 <p style="font-size: 0.6rem; font-weight: normal; margin-top:5px;">{{ r.mensagem }}</p>
-                <div class="dados-container"><strong>RESULTADO DA PERÍCIA:</strong><br><br>{{ r.dados }}</div>
+                <div class="dados-container"><strong>SCANNER DATA:</strong><br><br>{{ r.dados }}</div>
             </div>
             {% endif %}
         </div>
@@ -69,42 +72,43 @@ def motor_analise(caminho):
     texto = ""
     try:
         ext = caminho.lower().split('.')[-1]
-        # PDF
+        
+        # 1. Se for PDF, tenta extração digital
         if ext == 'pdf':
             with open(caminho, "rb") as f:
                 pdf = pypdf.PdfReader(f)
                 for pg in pdf.pages:
                     t = pg.extract_text()
                     if t: texto += t.upper() + " "
-            if not texto.strip():
-                # OCR em PDF (DPI 72 para não estourar RAM)
-                imgs = convert_from_path(caminho, dpi=72, thread_count=1)
-                for i in imgs: texto += pytesseract.image_to_string(i).upper() + " "
-        # IMAGEM DIRETA
-        elif ext in ['jpg', 'jpeg', 'png']:
-            texto = pytesseract.image_to_string(Image.open(caminho)).upper()
-    except Exception as e:
-        if "tesseract is not installed" in str(e).lower():
-            return {"status": "A", "titulo": "⚠️ ERRO DE SISTEMA", "mensagem": "Tesseract não instalado no Render.", "dados": "Ajuste o Build Command nas Settings."}
-        return {"status": "A", "titulo": "⚠️ FALHA NO PROCESSAMENTO", "mensagem": "Arquivo muito pesado ou erro de memória.", "dados": str(e)}
+        
+        # 2. Se for imagem ou PDF sem texto, usa EasyOCR
+        if not texto.strip() or ext in ['jpg', 'jpeg', 'png']:
+            # Se for imagem direta, carrega. Se for PDF, o motor ignora (aqui aceitamos fotos direto)
+            if ext in ['jpg', 'jpeg', 'png']:
+                resultado = reader.readtext(caminho, detail=0)
+                texto = " ".join(resultado).upper()
 
-    if not texto.strip(): return {"status": "A", "titulo": "⚠️ ILEGÍVEL", "mensagem": "Nenhum caractere identificado.", "dados": "N/A"}
+    except Exception as e:
+        return {"status": "A", "titulo": "⚠️ ERRO DE MOTOR", "mensagem": "Falha no processamento EasyOCR.", "dados": str(e)}
+
+    if not texto.strip(): return {"status": "A", "titulo": "⚠️ VAZIO", "mensagem": "Nenhum texto detectado.", "dados": "N/A"}
     
     txt_l = " ".join(texto.split())
     res = txt_l[:500] + "..." if len(txt_l) > 500 else txt_l
 
+    # Lógica de Classificação Permanente
     if any(x in texto for x in ["PIX", "TRANSACAO", "COMPROVANTE"]):
         status = "A" if "AGENDAMENTO" in texto else "O"
         tit = "⚠️ GOLPE: PIX AGENDADO" if status == "A" else "✅ PIX IDENTIFICADO"
-        return {"status": status, "titulo": tit, "mensagem": "Análise de transferência.", "dados": res}
+        return {"status": status, "titulo": tit, "mensagem": "Análise financeira.", "dados": res}
     
     if any(x in texto for x in ["CEDENTE", "SACADO", "BOLETO"]):
-        return {"status": "O", "titulo": "✅ BOLETO IDENTIFICADO", "mensagem": "Cobrança bancária.", "dados": res}
+        return {"status": "O", "titulo": "✅ BOLETO IDENTIFICADO", "mensagem": "Cobrança detectada.", "dados": res}
 
     if any(x in texto for x in ["REGISTRO GERAL", "CNH", "CPF", "IDENTIDADE", "CERTIDAO", "TRIBUNAL"]):
-        return {"status": "O", "titulo": "✅ DOCUMENTO PESSOAL", "mensagem": "Identificação detectada.", "dados": res}
+        return {"status": "O", "titulo": "✅ DOCUMENTO PESSOAL", "mensagem": "Dados de identificação.", "dados": res}
 
-    return {"status": "A", "titulo": "⚠️ DOC DESCONHECIDO", "mensagem": "Conteúdo extraído para revisão.", "dados": res}
+    return {"status": "A", "titulo": "⚠️ ANALISE MANUAL", "mensagem": "Texto extraído via OCR.", "dados": res}
 
 @app.route('/')
 def index(): return render_template_string(HTML_PAGE)
@@ -113,7 +117,7 @@ def index(): return render_template_string(HTML_PAGE)
 def upload_analise():
     f = request.files.get('file')
     if f and f.filename != '':
-        p = os.path.join(UPLOAD_FOLDER, f.filename)
+        p = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
         f.save(p)
         return render_template_string(HTML_PAGE, r=motor_analise(p))
     return redirect('/')
