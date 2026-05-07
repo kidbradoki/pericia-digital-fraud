@@ -1,6 +1,6 @@
 flask
-gunicorn
-requests
 pypdf
-pytesseract
-pdf2image
+easyocr
+opencv-python-headless
+pillow
+torch --index-url https://download.pytorch.org/whl/cpu
