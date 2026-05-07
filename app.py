@@ -8,7 +8,6 @@ UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER): os.makedirs(UPLOAD_FOLDER)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# HTML Otimizado - Layout v5.4
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -32,7 +31,7 @@ HTML_PAGE = """
     </style>
 </head>
 <body>
-    <h2>CENTRAL GHOST v5.4 RESILIENT</h2>
+    <h2>CENTRAL GHOST v5.5 FINAL</h2>
     <div class="flex-container">
         <div class="box-mini">
             <h3>MOD 01: BUSCA</h3>
@@ -47,16 +46,16 @@ HTML_PAGE = """
             <a href="https://www.google.com" target="_blank" class="btn btn-dark">GOOGLE</a>
         </div>
         <div class="box-full">
-            <h3>MOD 03: ANALISADOR (PDF/IMG/OCR)</h3>
+            <h3>MOD 03: ANALISADOR (MULTI-FORMATO)</h3>
             <form action="/analisar" method="post" enctype="multipart/form-data">
                 <input type="file" name="file" accept=".pdf, .jpg, .jpeg, .png" style="font-size:0.6rem; margin: 10px 0; color:#8b949e;" required>
-                <button type="submit" class="btn btn-green" style="font-size: 0.8rem; padding: 15px;">ESCANEAR ARQUIVO</button>
+                <button type="submit" class="btn btn-green" style="font-size: 0.8rem; padding: 15px;">ESCANEAR E ANALISAR</button>
             </form>
             {% if r %}
             <div class="status-badge {{ 'fraude' if r.status == 'A' else 'real' }}">
                 {{ r.titulo }}
                 <p style="font-size: 0.6rem; font-weight: normal; margin-top:5px;">{{ r.mensagem }}</p>
-                <div class="dados-container"><strong>DADOS LIDOS:</strong><br><br>{{ r.dados }}</div>
+                <div class="dados-container"><strong>RESULTADO DA PERÍCIA:</strong><br><br>{{ r.dados }}</div>
             </div>
             {% endif %}
         </div>
@@ -69,47 +68,43 @@ HTML_PAGE = """
 def motor_analise(caminho):
     texto = ""
     try:
-        extensao = caminho.lower().split('.')[-1]
-        
-        # 1. Se for PDF, tenta texto digital primeiro
-        if extensao == 'pdf':
+        ext = caminho.lower().split('.')[-1]
+        # PDF
+        if ext == 'pdf':
             with open(caminho, "rb") as f:
                 pdf = pypdf.PdfReader(f)
                 for pg in pdf.pages:
-                    ext = pg.extract_text()
-                    if ext: texto += ext.upper() + " "
-            
-            # Se PDF for imagem, converte com baixo DPI para economizar RAM
+                    t = pg.extract_text()
+                    if t: texto += t.upper() + " "
             if not texto.strip():
-                paginas = convert_from_path(caminho, dpi=72, thread_count=1, fmt="jpeg")
-                for img in paginas: texto += pytesseract.image_to_string(img, lang='por').upper() + " "
-        
-        # 2. Se for imagem direto (JPG/PNG)
-        elif extensao in ['jpg', 'jpeg', 'png']:
-            img = Image.open(caminho)
-            texto = pytesseract.image_to_string(img, lang='por').upper()
-
+                # OCR em PDF (DPI 72 para não estourar RAM)
+                imgs = convert_from_path(caminho, dpi=72, thread_count=1)
+                for i in imgs: texto += pytesseract.image_to_string(i).upper() + " "
+        # IMAGEM DIRETA
+        elif ext in ['jpg', 'jpeg', 'png']:
+            texto = pytesseract.image_to_string(Image.open(caminho)).upper()
     except Exception as e:
-        return {"status": "A", "titulo": "⚠️ LIMITE DE MEMÓRIA", "mensagem": "O servidor não suportou o processamento.", "dados": str(e)}
+        if "tesseract is not installed" in str(e).lower():
+            return {"status": "A", "titulo": "⚠️ ERRO DE SISTEMA", "mensagem": "Tesseract não instalado no Render.", "dados": "Ajuste o Build Command nas Settings."}
+        return {"status": "A", "titulo": "⚠️ FALHA NO PROCESSAMENTO", "mensagem": "Arquivo muito pesado ou erro de memória.", "dados": str(e)}
 
-    if not texto.strip(): return {"status": "A", "titulo": "⚠️ VAZIO", "mensagem": "Nenhum texto identificado.", "dados": "N/A"}
+    if not texto.strip(): return {"status": "A", "titulo": "⚠️ ILEGÍVEL", "mensagem": "Nenhum caractere identificado.", "dados": "N/A"}
     
-    txt_limpo = " ".join(texto.split())
-    resumo = txt_limpo[:500] + "..." if len(txt_limpo) > 500 else txt_limpo
+    txt_l = " ".join(texto.split())
+    res = txt_l[:500] + "..." if len(txt_l) > 500 else txt_l
 
-    # Classificação
     if any(x in texto for x in ["PIX", "TRANSACAO", "COMPROVANTE"]):
-        if "AGENDAMENTO" in texto:
-            return {"status": "A", "titulo": "⚠️ GOLPE: PIX AGENDADO", "mensagem": "Possível fraude.", "dados": resumo}
-        return {"status": "O", "titulo": "✅ PIX IDENTIFICADO", "mensagem": "Validado.", "dados": resumo}
+        status = "A" if "AGENDAMENTO" in texto else "O"
+        tit = "⚠️ GOLPE: PIX AGENDADO" if status == "A" else "✅ PIX IDENTIFICADO"
+        return {"status": status, "titulo": tit, "mensagem": "Análise de transferência.", "dados": res}
     
-    if any(x in texto for x in ["CEDENTE", "SACADO", "VENCIMENTO", "BOLETO"]):
-        return {"status": "O", "titulo": "✅ BOLETO IDENTIFICADO", "mensagem": "Documento bancário.", "dados": resumo}
-    
-    if any(x in texto for x in ["REGISTRO GERAL", "CNH", "CPF", "IDENTIDADE", "CERTIDAO", "TRIBUNAL"]):
-        return {"status": "O", "titulo": "✅ DOCUMENTO PESSOAL", "mensagem": "Identificação detectada.", "dados": resumo}
+    if any(x in texto for x in ["CEDENTE", "SACADO", "BOLETO"]):
+        return {"status": "O", "titulo": "✅ BOLETO IDENTIFICADO", "mensagem": "Cobrança bancária.", "dados": res}
 
-    return {"status": "A", "titulo": "⚠️ DOC DESCONHECIDO", "mensagem": "Texto extraído com sucesso.", "dados": resumo}
+    if any(x in texto for x in ["REGISTRO GERAL", "CNH", "CPF", "IDENTIDADE", "CERTIDAO", "TRIBUNAL"]):
+        return {"status": "O", "titulo": "✅ DOCUMENTO PESSOAL", "mensagem": "Identificação detectada.", "dados": res}
+
+    return {"status": "A", "titulo": "⚠️ DOC DESCONHECIDO", "mensagem": "Conteúdo extraído para revisão.", "dados": res}
 
 @app.route('/')
 def index(): return render_template_string(HTML_PAGE)
@@ -118,10 +113,9 @@ def index(): return render_template_string(HTML_PAGE)
 def upload_analise():
     f = request.files.get('file')
     if f and f.filename != '':
-        p = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
+        p = os.path.join(UPLOAD_FOLDER, f.filename)
         f.save(p)
-        res = motor_analise(p)
-        return render_template_string(HTML_PAGE, r=res)
+        return render_template_string(HTML_PAGE, r=motor_analise(p))
     return redirect('/')
 
 if __name__ == "__main__":
