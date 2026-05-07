@@ -1,13 +1,14 @@
 import os, re, pypdf, pytesseract
 from flask import Flask, render_template_string, request, redirect
 from pdf2image import convert_from_path
+from PIL import Image
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER): os.makedirs(UPLOAD_FOLDER)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# HTML/CSS Otimizado - Layout 100% fiel à imagem 1000072619.jpg
+# HTML Otimizado - Layout v5.4
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -31,7 +32,7 @@ HTML_PAGE = """
     </style>
 </head>
 <body>
-    <h2>CENTRAL GHOST v5.3 OPT</h2>
+    <h2>CENTRAL GHOST v5.4 RESILIENT</h2>
     <div class="flex-container">
         <div class="box-mini">
             <h3>MOD 01: BUSCA</h3>
@@ -46,16 +47,16 @@ HTML_PAGE = """
             <a href="https://www.google.com" target="_blank" class="btn btn-dark">GOOGLE</a>
         </div>
         <div class="box-full">
-            <h3>MOD 03: ANALISADOR (PDF + OCR)</h3>
+            <h3>MOD 03: ANALISADOR (PDF/IMG/OCR)</h3>
             <form action="/analisar" method="post" enctype="multipart/form-data">
-                <input type="file" name="file" accept=".pdf" style="font-size:0.6rem; margin: 10px 0; color:#8b949e;" required>
+                <input type="file" name="file" accept=".pdf, .jpg, .jpeg, .png" style="font-size:0.6rem; margin: 10px 0; color:#8b949e;" required>
                 <button type="submit" class="btn btn-green" style="font-size: 0.8rem; padding: 15px;">ESCANEAR ARQUIVO</button>
             </form>
             {% if r %}
             <div class="status-badge {{ 'fraude' if r.status == 'A' else 'real' }}">
                 {{ r.titulo }}
                 <p style="font-size: 0.6rem; font-weight: normal; margin-top:5px;">{{ r.mensagem }}</p>
-                <div class="dados-container"><strong>DADOS EXTRAÍDOS:</strong><br><br>{{ r.dados }}</div>
+                <div class="dados-container"><strong>DADOS LIDOS:</strong><br><br>{{ r.dados }}</div>
             </div>
             {% endif %}
         </div>
@@ -68,37 +69,47 @@ HTML_PAGE = """
 def motor_analise(caminho):
     texto = ""
     try:
-        # Tenta leitura digital
-        with open(caminho, "rb") as f:
-            pdf = pypdf.PdfReader(f)
-            for pg in pdf.pages:
-                ext = pg.extract_text()
-                if ext: texto += ext.upper() + " "
-        # Se vazio, ativa OCR (lê imagens dentro do PDF)
-        if not texto.strip():
-            paginas = convert_from_path(caminho)
-            for img in paginas: texto += pytesseract.image_to_string(img).upper() + " "
-    except Exception as e:
-        return {"status": "A", "titulo": "⚠️ ERRO", "mensagem": "Falha na leitura.", "dados": str(e)}
+        extensao = caminho.lower().split('.')[-1]
+        
+        # 1. Se for PDF, tenta texto digital primeiro
+        if extensao == 'pdf':
+            with open(caminho, "rb") as f:
+                pdf = pypdf.PdfReader(f)
+                for pg in pdf.pages:
+                    ext = pg.extract_text()
+                    if ext: texto += ext.upper() + " "
+            
+            # Se PDF for imagem, converte com baixo DPI para economizar RAM
+            if not texto.strip():
+                paginas = convert_from_path(caminho, dpi=72, thread_count=1, fmt="jpeg")
+                for img in paginas: texto += pytesseract.image_to_string(img, lang='por').upper() + " "
+        
+        # 2. Se for imagem direto (JPG/PNG)
+        elif extensao in ['jpg', 'jpeg', 'png']:
+            img = Image.open(caminho)
+            texto = pytesseract.image_to_string(img, lang='por').upper()
 
-    if not texto.strip(): return {"status": "A", "titulo": "⚠️ VAZIO", "mensagem": "Nenhum dado legível.", "dados": "N/A"}
+    except Exception as e:
+        return {"status": "A", "titulo": "⚠️ LIMITE DE MEMÓRIA", "mensagem": "O servidor não suportou o processamento.", "dados": str(e)}
+
+    if not texto.strip(): return {"status": "A", "titulo": "⚠️ VAZIO", "mensagem": "Nenhum texto identificado.", "dados": "N/A"}
     
     txt_limpo = " ".join(texto.split())
     resumo = txt_limpo[:500] + "..." if len(txt_limpo) > 500 else txt_limpo
 
-    # Classificação Otimizada
-    if "PIX" in texto or "TRANSACAO" in texto:
-        if "AGENDAMENTO" in texto and "COMPROVANTE" in texto:
-            return {"status": "A", "titulo": "⚠️ GOLPE: PIX AGENDADO", "mensagem": "Fraude detectada.", "dados": resumo}
+    # Classificação
+    if any(x in texto for x in ["PIX", "TRANSACAO", "COMPROVANTE"]):
+        if "AGENDAMENTO" in texto:
+            return {"status": "A", "titulo": "⚠️ GOLPE: PIX AGENDADO", "mensagem": "Possível fraude.", "dados": resumo}
         return {"status": "O", "titulo": "✅ PIX IDENTIFICADO", "mensagem": "Validado.", "dados": resumo}
     
     if any(x in texto for x in ["CEDENTE", "SACADO", "VENCIMENTO", "BOLETO"]):
-        return {"status": "O", "titulo": "✅ BOLETO IDENTIFICADO", "mensagem": "Cobrança bancária.", "dados": resumo}
+        return {"status": "O", "titulo": "✅ BOLETO IDENTIFICADO", "mensagem": "Documento bancário.", "dados": resumo}
     
     if any(x in texto for x in ["REGISTRO GERAL", "CNH", "CPF", "IDENTIDADE", "CERTIDAO", "TRIBUNAL"]):
-        return {"status": "O", "titulo": "✅ DOCUMENTO PESSOAL", "mensagem": "Certidão ou ID detectado.", "dados": resumo}
+        return {"status": "O", "titulo": "✅ DOCUMENTO PESSOAL", "mensagem": "Identificação detectada.", "dados": resumo}
 
-    return {"status": "A", "titulo": "⚠️ DESCONHECIDO", "mensagem": "Manual necessário.", "dados": resumo}
+    return {"status": "A", "titulo": "⚠️ DOC DESCONHECIDO", "mensagem": "Texto extraído com sucesso.", "dados": resumo}
 
 @app.route('/')
 def index(): return render_template_string(HTML_PAGE)
@@ -107,7 +118,7 @@ def index(): return render_template_string(HTML_PAGE)
 def upload_analise():
     f = request.files.get('file')
     if f and f.filename != '':
-        p = os.path.join(UPLOAD_FOLDER, f.filename)
+        p = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
         f.save(p)
         res = motor_analise(p)
         return render_template_string(HTML_PAGE, r=res)
