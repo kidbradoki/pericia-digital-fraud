@@ -15,45 +15,45 @@ HTML_PAGE = """
             background-color: #0d1117; 
             color: #c9d1d9; 
             font-family: sans-serif; 
-            padding: 15px; 
+            padding: 10px; 
             text-align: center;
         }
-        .header { margin-bottom: 20px; padding-top: 10px; }
+        .header { margin-bottom: 15px; }
         
-        /* Layout em Grade Flexível */
+        /* Container que força o lado a lado */
         .flex-container {
             display: flex;
-            flex-wrap: wrap;
+            flex-direction: row; /* Força linha única */
             justify-content: center;
-            gap: 15px;
-            max-width: 1000px;
+            gap: 8px; /* Espaço pequeno entre blocos */
+            width: 100%;
+            max-width: 600px;
             margin: 0 auto;
         }
 
         .box { 
-            border: 2px solid #30363d; 
-            border-radius: 12px; 
-            padding: 15px; 
+            border: 1px solid #30363d; 
+            border-radius: 10px; 
+            padding: 10px; 
             background: #161b22; 
             text-align: left; 
-            flex: 1 1 300px; /* Base de 300px, cresce se houver espaço */
-            max-width: 450px;
+            flex: 1; /* Faz ambos ocuparem o mesmo espaço (50/50) */
+            min-width: 0; /* Impede que o bloco estoure o limite da tela */
         }
 
         .btn {
             display: block; 
             width: 100%; 
-            padding: 14px; 
+            padding: 12px 2px; 
             text-decoration: none; 
-            border-radius: 8px; 
+            border-radius: 6px; 
             font-weight: bold; 
-            margin-top: 10px; 
+            margin-top: 8px; 
             text-align: center; 
             color: white; 
-            font-size: 0.95rem;
-            transition: 0.2s;
+            font-size: 0.75rem; /* Fonte menor para caber lado a lado */
+            text-transform: uppercase;
         }
-        .btn:active { transform: scale(0.97); }
         
         .btn-green { background-color: #238636; }
         .btn-purple { background-color: #8957e5; }
@@ -62,42 +62,48 @@ HTML_PAGE = """
         .btn-red { background-color: #da3633; }
         .btn-dark { background-color: #30363d; border: 1px solid #8b949e; }
         
-        h2 { color: #3fb950; margin-bottom: 5px; }
-        h3 { color: #8b949e; font-size: 0.85rem; margin-bottom: 10px; border-bottom: 1px solid #30363d; padding-bottom: 5px; text-transform: uppercase; }
-        .label { font-size: 0.7rem; color: #8b949e; margin-top: 10px; font-weight: bold; display: block; }
+        h2 { color: #3fb950; font-size: 1.2rem; }
+        h3 { 
+            color: #8b949e; 
+            font-size: 0.65rem; 
+            margin-bottom: 5px; 
+            border-bottom: 1px solid #30363d; 
+            padding-bottom: 3px; 
+            white-space: nowrap; 
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .label { font-size: 0.6rem; color: #8b949e; margin-top: 8px; font-weight: bold; display: block; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h2>Painel OSINT GHOST</h2>
-        <p style="font-size: 0.8rem; color: #8b949e;">Central de Inteligência v2.6</p>
+        <h2>OSINT GHOST</h2>
+        <p style="font-size: 0.7rem; color: #8b949e;">Central de Inteligência v2.7</p>
     </div>
     
     <div class="flex-container">
         <div class="box">
-            <h3>Módulo 01: Reconhecimento</h3>
-            <span class="label">IDENTIDADE & EMAIL:</span>
+            <h3>MÓDULO 01</h3>
+            <span class="label">INVESTIGAÇÃO:</span>
             <a href="https://epieos.com" target="_blank" class="btn btn-green">EPIEOS</a>
             <a href="https://intelx.io" target="_blank" class="btn btn-purple">INTELX</a>
-
-            <span class="label">REDES SOCIAIS:</span>
-            <a href="https://www.social-searcher.com" target="_blank" class="btn btn-orange">SOCIAL SEARCHER</a>
+            <span class="label">SOCIAL:</span>
+            <a href="https://www.social-searcher.com" target="_blank" class="btn btn-orange">SOCIAL S.</a>
         </div>
 
         <div class="box">
-            <h3>Módulo 02: Perícia Técnica</h3>
-            <span class="label">ANÁLISE DE RISCO (IP):</span>
-            <a href="https://www.ipqualityscore.com/free-ip-lookup-proxy-vpn-test" target="_blank" class="btn btn-red">IP QUALITY SCORE</a>
-            
-            <span class="label">DADOS CORPORATIVOS:</span>
+            <h3>MÓDULO 02</h3>
+            <span class="label">TÉCNICO/IP:</span>
+            <a href="https://www.ipqualityscore.com/free-ip-lookup-proxy-vpn-test" target="_blank" class="btn btn-red">IP QUALITY</a>
+            <span class="label">CNPJ:</span>
             <a href="https://cnpj.biz" target="_blank" class="btn btn-blue">CNPJ.BIZ</a>
-
-            <span class="label">OUTROS:</span>
-            <a href="https://www.google.com" target="_blank" class="btn btn-dark">GOOGLE SEARCH</a>
+            <span class="label">BUSCA:</span>
+            <a href="https://www.google.com" target="_blank" class="btn btn-dark">GOOGLE</a>
         </div>
     </div>
 
-    <p style="margin-top: 25px; font-size: 0.6rem; color: #484f58;">AGENTE: GHOST | SISTEMA ATIVO</p>
+    <p style="margin-top: 20px; font-size: 0.55rem; color: #484f58;">AGENTE: GHOST | OPERAÇÃO ATIVA</p>
 </body>
 </html>
 """
