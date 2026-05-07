@@ -1,14 +1,17 @@
 import os
-from flask import Flask, render_template_string, request, send_from_directory, redirect
+import re
 import pypdf
+from flask import Flask, render_template_string, request, redirect
 
 app = Flask(__name__)
 
+# Configuração de diretórios
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# Interface com layout travado (Imagem 1000072619.jpg)
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -19,7 +22,6 @@ HTML_PAGE = """
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: #0d1117; color: #c9d1d9; font-family: sans-serif; padding: 8px; text-align: center; }
         
-        /* Layout Travado conforme Imagem 1000072619.jpg */
         .flex-container {
             display: flex;
             flex-direction: row;
@@ -29,6 +31,7 @@ HTML_PAGE = """
             margin: 0 auto;
         }
 
+        /* Blocos superiores lado a lado */
         .box-mini { 
             border: 1px solid #30363d; 
             border-radius: 8px; 
@@ -39,6 +42,7 @@ HTML_PAGE = """
             margin-bottom: 10px;
         }
 
+        /* Bloco inferior ocupando tudo */
         .box-full {
             border: 1px solid #30363d;
             border-radius: 8px;
@@ -67,15 +71,15 @@ HTML_PAGE = """
         h3 { color: #8b949e; font-size: 0.55rem; border-bottom: 1px solid #30363d; padding-bottom: 3px; text-transform: uppercase; }
         .label { font-size: 0.5rem; color: #8b949e; margin-top: 8px; font-weight: bold; display: block; }
         
-        /* Relatório de Perícia */
+        /* Estilos de Resposta da Análise */
         .status-badge { margin-top: 10px; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; text-align: center; }
         .fraude { background: rgba(218, 54, 51, 0.2); border: 1px solid #da3633; color: #ff7b72; }
         .real { background: rgba(35, 134, 54, 0.2); border: 1px solid #238636; color: #7ee787; }
-        .dados-extraidos { background: #0d1117; color: #8b949e; font-family: monospace; font-size: 0.55rem; padding: 5px; margin-top: 5px; border-radius: 4px; border: 1px solid #30363d; overflow-wrap: break-word; }
+        .dados-container { background: #000; color: #8b949e; font-family: monospace; font-size: 0.55rem; padding: 8px; margin-top: 8px; border-radius: 4px; border: 1px solid #30363d; text-align: left; overflow-wrap: break-word; }
     </style>
 </head>
 <body>
-    <h2>CENTRAL GHOST v4.6</h2>
+    <h2>CENTRAL GHOST v5.1</h2>
     
     <div class="flex-container">
         <div class="box-mini">
@@ -93,23 +97,21 @@ HTML_PAGE = """
         </div>
 
         <div class="box-full">
-            <h3>MOD 03: ANALISADOR DE PIX</h3>
+            <h3>MOD 03: ANALISADOR MULTI-DOC</h3>
             <form action="/analisar" method="post" enctype="multipart/form-data">
                 <input type="file" name="file" accept=".pdf" style="font-size:0.6rem; margin: 10px 0; color:#8b949e;" required>
-                <button type="submit" class="btn btn-green" style="font-size: 0.8rem; padding: 15px;">ESCANEAR & ANALISAR</button>
+                <button type="submit" class="btn btn-green" style="font-size: 0.8rem; padding: 15px;">ESCANEAR ARQUIVO</button>
             </form>
             
-            {% if resultado %}
-            <div class="status-badge {{ 'fraude' if resultado.fraude else 'real' }}">
-                {{ "⚠️ GOLPE / FALSO DETECTADO" if resultado.fraude else "✅ COMPROVANTE REAL" }}
-                <p style="font-size: 0.6rem; font-weight: normal; margin-top:5px;">{{ resultado.mensagem }}</p>
+            {% if r %}
+            <div class="status-badge {{ 'fraude' if r.status == 'A' else 'real' }}">
+                {{ r.titulo }}
+                <p style="font-size: 0.6rem; font-weight: normal; margin-top:5px;">{{ r.mensagem }}</p>
                 
-                {% if resultado.fraude %}
-                <div class="dados-extraidos">
-                    <strong>DADOS DO ARQUIVO:</strong><br>
-                    {{ resultado.dados }}
+                <div class="dados-container">
+                    <strong>CONTEÚDO EXTRAÍDO:</strong><br>
+                    {{ r.dados }}
                 </div>
-                {% endif %}
             </div>
             {% endif %}
         </div>
@@ -125,30 +127,32 @@ def motor_analise(caminho):
         with open(caminho, "rb") as f:
             pdf = pypdf.PdfReader(f)
             for pagina in pdf.pages:
-                extracted = pagina.extract_text()
-                if extracted:
-                    texto += extracted.upper()
+                ext = pagina.extract_text()
+                if ext: texto += ext.upper()
     except:
-        return {"fraude": True, "mensagem": "Erro técnico: O arquivo não pôde ser lido.", "dados": "N/A"}
+        return {"status": "A", "titulo": "⚠️ ERRO", "mensagem": "Falha na leitura do PDF.", "dados": "N/A"}
 
     if not texto:
-        return {"fraude": True, "mensagem": "Arquivo sem texto detectável (possível imagem falsa convertida).", "dados": "PDF VAZIO"}
+        return {"status": "A", "titulo": "⚠️ PDF SEM CAMADA DE TEXTO", "mensagem": "Arquivo pode ser uma imagem pura.", "dados": "Vazio"}
 
-    is_fraude = False
-    motivo = "Os padrões de autenticação digital estão presentes."
-    
-    # Lógica de detecção
-    if "AGENDAMENTO" in texto and "COMPROVANTE" in texto:
-        is_fraude = True
-        motivo = "Detecção de Agendamento Mascarado."
-    elif "ID" not in texto and "AUTENTICACAO" not in texto and "TRANSACAO" not in texto:
-        is_fraude = True
-        motivo = "Ausência de IDs de autenticação bancária."
-    
-    # Mostra os primeiros 300 caracteres do texto para o Ghost analisar os dados
-    dados_resumo = texto[:300] + "..." if len(texto) > 300 else texto
-    
-    return {"fraude": is_fraude, "mensagem": motivo, "dados": dados_resumo}
+    resumo = texto[:400] + "..." if len(texto) > 400 else texto
+
+    # Detecção de Pix
+    if "PIX" in texto or "TRANSACAO" in texto:
+        if "AGENDAMENTO" in texto and "COMPROVANTE" in texto:
+            return {"status": "A", "titulo": "⚠️ GOLPE: PIX AGENDADO", "mensagem": "Simulação de pagamento detectada.", "dados": resumo}
+        if "ID" in texto or "AUTENTICACAO" in texto:
+            return {"status": "O", "titulo": "✅ PIX REAL", "mensagem": "Comprovante legítimo identificado.", "dados": resumo}
+
+    # Detecção de Boletos
+    if any(x in texto for x in ["CEDENTE", "SACADO", "VENCIMENTO"]) or re.search(r'\d{30,}', texto.replace(" ", "")):
+        return {"status": "O", "titulo": "✅ BOLETO IDENTIFICADO", "mensagem": "Padrão de cobrança bancária.", "dados": resumo}
+
+    # Detecção de Documentos
+    if any(x in texto for x in ["REGISTRO GERAL", "CNH", "CPF", "IDENTIDADE", "FILIACAO"]):
+        return {"status": "O", "titulo": "✅ DOCUMENTO PESSOAL", "mensagem": "Dados de identificação civil.", "dados": resumo}
+
+    return {"status": "A", "titulo": "⚠️ DOC NÃO IDENTIFICADO", "mensagem": "Conteúdo lido, mas padrão desconhecido.", "dados": resumo}
 
 @app.route('/')
 def index():
@@ -161,7 +165,7 @@ def upload_analise():
         path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
         file.save(path)
         resultado = motor_analise(path)
-        return render_template_string(HTML_PAGE, resultado=resultado)
+        return render_template_string(HTML_PAGE, r=resultado)
     return redirect('/')
 
 if __name__ == "__main__":
