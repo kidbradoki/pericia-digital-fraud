@@ -6,12 +6,10 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          git remote add hf https://ghost-analyst:$HF_TOKEN@huggingface.co/spaces/ghost-analyst/central-ghost-bravo || git remote set-url hf https://ghost-analyst:$HF_TOKEN@huggingface.co/spaces/ghost-analyst/central-ghost-bravo
-          git push hf main --force
+        run: git push https://ghost-analyst:$HF_TOKEN@huggingface.co/spaces/ghost-analyst/central-ghost-bravo HEAD:main --force
