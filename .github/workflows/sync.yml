@@ -13,4 +13,5 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git push --force https://ghost-analyst:$HF_TOKEN@huggingface.co/spaces/ghost-analyst/central-ghost-bravo main
+          git remote add hf https://ghost-analyst:$HF_TOKEN@huggingface.co/spaces/ghost-analyst/central-ghost-bravo
+          git push --force hf main
