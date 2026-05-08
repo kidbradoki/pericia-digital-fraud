@@ -1,3 +1,7 @@
 flask
 pypdf
+easyocr
+requests
 gunicorn
+opencv-python-headless
+numpy
