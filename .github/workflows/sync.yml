@@ -12,4 +12,7 @@ jobs:
       - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push https://ghost-analyst:$HF_TOKEN@huggingface.co/spaces/ghost-analyst/central-ghost-bravo HEAD:main --force
+        run: |
+          # Remove arquivos grandes do índice de envio antes de dar o push
+          git filter-branch --force --index-filter 'git rm --cached --ignore-unmatch *.jpg *.png' --prune-empty --tag-name-filter cat -- --all || true
+          git push https://ghost-analyst:$HF_TOKEN@huggingface.co/spaces/ghost-analyst/central-ghost-bravo HEAD:main --force
