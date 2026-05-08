@@ -15,5 +15,7 @@ jobs:
         run: |
           git config --global user.email "kidbradaki1@gmail.com"
           git config --global user.name "ghost-analyst"
-          git remote set-url origin https://ghost-analyst:$HF_TOKEN@huggingface.co/spaces/ghost-analyst/central-ghost-bravo
-          git push --force origin main
+          # Força a reconfiguração do destino
+          git remote add hf https://ghost-analyst:$HF_TOKEN@huggingface.co/spaces/ghost-analyst/central-ghost-bravo || git remote set-url hf https://ghost-analyst:$HF_TOKEN@huggingface.co/spaces/ghost-analyst/central-ghost-bravo
+          # O comando '--force' é o que vence o erro vermelho
+          git push hf main --force
