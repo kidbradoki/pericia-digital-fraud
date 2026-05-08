@@ -6,23 +6,22 @@ from urllib.parse import urlparse
 
 app = Flask(__name__)
 
-# Configuração de Pasta de Upload
+# Configuração de Pastas
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Inicializa o OCR
+# Motor OCR
 reader = easyocr.Reader(['pt', 'en'], gpu=False)
 
-# HTML ORIGINAL V7 (Ajustado para evitar erros de histórico)
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GHOST INTEL v7.0</title>
+    <title>CENTRAL GHOST</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: #0d1117; color: #c9d1d9; font-family: sans-serif; padding: 10px; text-align: center; }
@@ -66,8 +65,8 @@ HTML_PAGE = """
             {% if u %}
             <div class="status-badge {{ 'fraude' if u.risco == 'ALTO' else 'real' }}">
                 [{{ u.risco }}] {{ u.titulo }}
-                <div class="dados-container"><strong>REPORTE:</strong> {{ u.msg }}</div>
-                <a href="/" class="btn btn-dark" style="margin-top:5px;">VOLTAR / LIMPAR</a>
+                <div class="dados-container">{{ u.msg }}</div>
+                <a href="/" class="btn btn-dark" style="margin-top:5px;">LIMPAR RESULTADO</a>
             </div>
             {% endif %}
         </div>
@@ -75,14 +74,14 @@ HTML_PAGE = """
         <div class="box-full">
             <h3>MOD 04: SCANNER OCR ELITE</h3>
             <form action="/analisar" method="post" enctype="multipart/form-data">
-                <input type="file" name="file" accept=".pdf, .jpg, .jpeg, .png" style="font-size:0.7rem; color:#8b949e;" required>
+                <input type="file" name="file" accept=".pdf, .jpg, .jpeg, .png" required>
                 <button type="submit" class="btn btn-green">EXECUTAR PERÍCIA</button>
             </form>
             {% if r %}
             <div class="status-badge {{ 'fraude' if r.status == 'A' else 'real' }}">
                 {{ r.titulo }}
                 <div class="dados-container">{{ r.dados }}</div>
-                <a href="/" class="btn btn-dark" style="margin-top:5px;">VOLTAR / LIMPAR</a>
+                <a href="/" class="btn btn-dark" style="margin-top:5px;">LIMPAR RESULTADO</a>
             </div>
             {% endif %}
         </div>
@@ -100,7 +99,7 @@ def scan_url():
     url = request.form.get('url', '')
     domain = urlparse(url).netloc if "://" in url else urlparse("http://"+url).netloc
     risco = "ALTO" if any(x in url.lower() for x in ['.xyz', 'brazino', 'pix']) else "BAIXO"
-    res = {"dominio": domain, "risco": risco, "titulo": "SCANNER DE LINK", "msg": "Análise de reputação concluída."}
+    res = {"dominio": domain, "risco": risco, "titulo": "RESULTADO SCAN", "msg": "Análise concluída com sucesso."}
     return render_template_string(HTML_PAGE, u=res)
 
 @app.route('/analisar', methods=['POST'])
@@ -110,15 +109,13 @@ def upload_analise():
         p = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
         f.save(p)
         try:
-            # Lógica simplificada para garantir velocidade
             texto = " ".join(reader.readtext(p, detail=0)).upper()
             status = "A" if "AGENDAMENTO" in texto else "O"
-            res = {"status": status, "titulo": "PERÍCIA CONCLUÍDA", "dados": texto[:500]}
+            res = {"status": status, "titulo": "RESULTADO OCR", "dados": texto[:500]}
         except:
             res = {"status": "A", "titulo": "ERRO", "dados": "Falha no processamento."}
         return render_template_string(HTML_PAGE, r=res)
     return redirect(url_for('index'))
 
 if __name__ == "__main__":
-    # ESSA PORTA É O QUE MANTÉM O HUGGING FACE VIVO
     app.run(host='0.0.0.0', port=7860)
