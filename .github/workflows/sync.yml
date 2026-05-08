@@ -13,4 +13,4 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git push --force https://kidbradaki:$HF_TOKEN@huggingface.co/spaces/ghost-analyst/central-ghost-bravo main
+          git push --force https://ghost-analyst:$HF_TOKEN@huggingface.co/spaces/ghost-analyst/central-ghost-bravo main
