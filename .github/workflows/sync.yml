@@ -13,5 +13,7 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git remote add hf https://ghost-analyst:$HF_TOKEN@huggingface.co/spaces/ghost-analyst/central-ghost-bravo
-          git push --force hf main
+          git config --global user.email "kidbradaki1@gmail.com"
+          git config --global user.name "ghost-analyst"
+          git remote set-url origin https://ghost-analyst:$HF_TOKEN@huggingface.co/spaces/ghost-analyst/central-ghost-bravo
+          git push --force origin main
