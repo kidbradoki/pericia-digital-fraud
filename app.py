@@ -1,7 +1,6 @@
 import os
-import pypdf
 import easyocr
-from flask import Flask, render_template_string, request, redirect, url_for
+from flask import Flask, render_template_string, request
 from urllib.parse import urlparse
 
 app = Flask(__name__)
@@ -12,7 +11,7 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Motor OCR
+# Motor OCR (Carrega uma vez só)
 reader = easyocr.Reader(['pt', 'en'], gpu=False)
 
 HTML_PAGE = """
@@ -21,7 +20,7 @@ HTML_PAGE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CENTRAL GHOST</title>
+    <title>GHOST INTEL</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: #0d1117; color: #c9d1d9; font-family: sans-serif; padding: 10px; text-align: center; }
@@ -58,64 +57,66 @@ HTML_PAGE = """
         
         <div class="box-full">
             <h3>MOD 03: SENTINELA DE LINKS</h3>
-            <form action="/scan_url" method="post">
-                <input type="text" name="url" placeholder="Cole o link suspeito aqui..." required>
-                <button type="submit" class="btn btn-purple">VERIFICAR REPUTAÇÃO</button>
+            <form method="POST">
+                <input type="text" name="url" placeholder="Cole o link suspeito aqui..." value="{{ url_digitada }}">
+                <button type="submit" name="acao" value="scan" class="btn btn-purple">VERIFICAR REPUTAÇÃO</button>
             </form>
             {% if u %}
             <div class="status-badge {{ 'fraude' if u.risco == 'ALTO' else 'real' }}">
                 [{{ u.risco }}] {{ u.titulo }}
                 <div class="dados-container">{{ u.msg }}</div>
-                <a href="/" class="btn btn-dark" style="margin-top:5px;">LIMPAR RESULTADO</a>
             </div>
             {% endif %}
         </div>
 
         <div class="box-full">
             <h3>MOD 04: SCANNER OCR ELITE</h3>
-            <form action="/analisar" method="post" enctype="multipart/form-data">
-                <input type="file" name="file" accept=".pdf, .jpg, .jpeg, .png" required>
-                <button type="submit" class="btn btn-green">EXECUTAR PERÍCIA</button>
+            <form method="POST" enctype="multipart/form-data">
+                <input type="file" name="file" accept="image/*,.pdf" style="font-size:0.7rem; color:#8b949e;">
+                <button type="submit" name="acao" value="ocr" class="btn btn-green">EXECUTAR PERÍCIA</button>
             </form>
             {% if r %}
             <div class="status-badge {{ 'fraude' if r.status == 'A' else 'real' }}">
                 {{ r.titulo }}
                 <div class="dados-container">{{ r.dados }}</div>
-                <a href="/" class="btn btn-dark" style="margin-top:5px;">LIMPAR RESULTADO</a>
             </div>
             {% endif %}
         </div>
     </div>
+    <a href="/" class="btn btn-dark" style="margin-top:20px; width:50%; margin-left:25%;">LIMPAR TUDO</a>
 </body>
 </html>
 """
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    return render_template_string(HTML_PAGE)
+    u = None
+    r = None
+    url_digitada = ""
+    
+    if request.method == 'POST':
+        acao = request.form.get('acao')
+        
+        if acao == 'scan':
+            url = request.form.get('url', '')
+            url_digitada = url
+            domain = urlparse(url).netloc if "://" in url else urlparse("http://"+url).netloc
+            risco = "ALTO" if any(x in url.lower() for x in ['.xyz', 'brazino', 'pix', 'bet']) else "BAIXO"
+            u = {"dominio": domain, "risco": risco, "titulo": "RESULTADO SCAN", "msg": f"Análise concluída para: {domain}"}
+            
+        elif acao == 'ocr':
+            f = request.files.get('file')
+            if f:
+                p = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
+                f.save(p)
+                try:
+                    texto = " ".join(reader.readtext(p, detail=0)).upper()
+                    status = "A" if any(x in texto for x in ["AGENDAMENTO", "COMPROVANTE"]) else "O"
+                    r = {"status": status, "titulo": "RESULTADO OCR", "dados": texto[:500]}
+                except:
+                    r = {"status": "A", "titulo": "ERRO", "dados": "Falha no processamento do arquivo."}
 
-@app.route('/scan_url', methods=['POST'])
-def scan_url():
-    url = request.form.get('url', '')
-    domain = urlparse(url).netloc if "://" in url else urlparse("http://"+url).netloc
-    risco = "ALTO" if any(x in url.lower() for x in ['.xyz', 'brazino', 'pix']) else "BAIXO"
-    res = {"dominio": domain, "risco": risco, "titulo": "RESULTADO SCAN", "msg": "Análise concluída com sucesso."}
-    return render_template_string(HTML_PAGE, u=res)
-
-@app.route('/analisar', methods=['POST'])
-def upload_analise():
-    f = request.files.get('file')
-    if f:
-        p = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
-        f.save(p)
-        try:
-            texto = " ".join(reader.readtext(p, detail=0)).upper()
-            status = "A" if "AGENDAMENTO" in texto else "O"
-            res = {"status": status, "titulo": "RESULTADO OCR", "dados": texto[:500]}
-        except:
-            res = {"status": "A", "titulo": "ERRO", "dados": "Falha no processamento."}
-        return render_template_string(HTML_PAGE, r=res)
-    return redirect(url_for('index'))
+    return render_template_string(HTML_PAGE, u=u, r=r, url_digitada=url_digitada)
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=7860)
