@@ -2,6 +2,8 @@ import os, re, pypdf, easyocr, requests
 import numpy as np
 from flask import Flask, render_template_string, request, redirect
 from urllib.parse import urlparse
+from PIL import Image
+from PIL.ExifTags import TAGS
 
 app = Flask(__name__)
 
@@ -131,7 +133,7 @@ HTML_PAGE = """
             text-align: left; 
             overflow-wrap: break-word; 
             line-height: 1.2; 
-            max-height: 150px; 
+            max-height: 250px; 
             overflow-y: auto; 
         }
     </style>
@@ -173,12 +175,26 @@ HTML_PAGE = """
             <h3>MOD 03: SCANNER OCR ELITE (PDF/FOTO)</h3>
             <form action="/analisar" method="post" enctype="multipart/form-data">
                 <input type="file" name="file" accept=".pdf, .jpg, .jpeg, .png" style="font-size:0.7rem; margin: 10px 0; color:#8b949e;" required>
-                <button type="submit" class="btn btn-green">EXECUTAR PERÍCIA</button>
+                <button type="submit" class="btn btn-green">EXECUTAR PERÍCIA (TEXTO)</button>
             </form>
             {% if r %}
             <div class="status-badge {{ 'fraude' if r.status == 'A' else 'real' }}">
                 {{ r.titulo }}
                 <div class="dados-container">{{ r.dados }}</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="box-full">
+            <h3>MOD 05: EXTRAÇÃO DE METADADOS (EXIF)</h3>
+            <form action="/metadados" method="post" enctype="multipart/form-data">
+                <input type="file" name="file" accept=".jpg, .jpeg, .png, .tiff" style="font-size:0.7rem; margin: 10px 0; color:#8b949e;" required>
+                <button type="submit" class="btn btn-blue">EXTRAIR DADOS OCULTOS</button>
+            </form>
+            {% if m %}
+            <div class="status-badge {{ 'fraude' if m.status == 'A' else 'real' }}">
+                {{ m.titulo }}
+                <div class="dados-container">{{ m.dados | safe }}</div>
             </div>
             {% endif %}
         </div>
@@ -212,6 +228,29 @@ def motor_analise(caminho):
         
     return {"status": "O", "titulo": "🔍 ANÁLISE CONCLUÍDA", "dados": res}
 
+def motor_metadados(caminho):
+    try:
+        img = Image.open(caminho)
+        # Tenta extrair os metadados profundos (onde fica GPS, Câmera, etc)
+        exif_info = img._getexif()
+        
+        if not exif_info:
+            return {"status": "A", "titulo": "⚠️ RESULTADO", "dados": "Nenhum dado EXIF oculto encontrado. A imagem pode ter sido limpa (ex: enviada via WhatsApp)."}
+            
+        linhas = []
+        for tag_id, valor in exif_info.items():
+            tag_nome = TAGS.get(tag_id, tag_id)
+            # Ignora blocos binários complexos para não travar a tela
+            if isinstance(valor, bytes):
+                valor = "[Dados Binários Omitidos]"
+            linhas.append(f"<b>[{tag_nome}]:</b> {valor}")
+            
+        res = "<br>".join(linhas)
+        return {"status": "O", "titulo": "🎯 METADADOS CAPTURADOS", "dados": res}
+        
+    except Exception as e:
+        return {"status": "A", "titulo": "⚠️ ERRO DE LEITURA", "dados": f"Falha ao ler arquivo: {str(e)}"}
+
 @app.route('/')
 def index():
     return render_template_string(HTML_PAGE)
@@ -221,7 +260,6 @@ def scan_url():
     url = request.form.get('url')
     domain = urlparse(url).netloc if "://" in url else urlparse("http://"+url).netloc
     
-    # Simulação de base de dados de Phishing e Shady TLDs
     shady_tlds = ['.xyz', '.top', '.zip', '.icu', '.link', '.bet', '.win']
     blacklist = ['brazino777', 'login', 'atualizar-dados', 'verificar-pix', 'suporte-bank']
     
@@ -246,6 +284,15 @@ def upload_analise():
         p = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
         f.save(p)
         return render_template_string(HTML_PAGE, r=motor_analise(p))
+    return redirect('/')
+
+@app.route('/metadados', methods=['POST'])
+def upload_metadados():
+    f = request.files.get('file')
+    if f:
+        p = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
+        f.save(p)
+        return render_template_string(HTML_PAGE, m=motor_metadados(p))
     return redirect('/')
 
 if __name__ == "__main__":
