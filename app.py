@@ -1,5 +1,8 @@
-import requests, re
+import requests, re, os
 from flask import Flask, render_template_string, request
+from PIL import Image
+from PIL.ExifTags import TAGS
+
 app = Flask(__name__)
 
 H = """
@@ -12,7 +15,7 @@ H = """
 <div id="pe" class="eng" style="display:{% if mp %}block{% else %}none{% endif %};"><form action="/p" method="post"><input type="text" name="placa" required><button class="btn" style="width:100%">EXECUTAR</button></form>{% if mp %}<div class="res">{{ mp }}</div>{% endif %}</div>
 <div id="ue" class="eng" style="display:{% if ms %}block{% else %}none{% endif %};"><form action="/s" method="post"><input type="text" name="url" required><button class="btn" style="width:100%">SCANNER</button></form>{% if ms %}<div class="res">{{ ms }}</div>{% endif %}</div></div>
 <div class="mod"><h3>MOD 04: PERÍCIA</h3><div class="g3"><button onclick="t('fe')" class="btn">ARQUIVO</button><button onclick="t('fe')" class="btn">EXECUTAR</button><a href="/" class="btn">LIMPAR</a></div>
-<div id="fe" class="eng" style="display:{% if ma %}block{% else %}none{% endif %};"><form action="/a" method="post" enctype="multipart/form-data"><input type="file" name="file" required><button class="btn" style="width:100%">PROCESSAR</button></form>{% if ma %}<div class="res">{{ ma }}</div>{% endif %}</div></div></div>
+<div id="fe" class="eng" style="display:{% if ma %}block{% else %}none{% endif %};"><form action="/a" method="post" enctype="multipart/form-data"><input type="file" name="file" required><button class="btn" style="width:100%">PROCESSAR</button></form>{% if ma %}<div class="res">{{ ma|safe }}</div>{% endif %}</div></div></div>
 <script>function t(id){let e=document.getElementById(id);e.style.display=(e.style.display==='block')?'none':'block'}const c=document.getElementById('m'),x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const f=16,d=Array(Math.floor(c.width/f)).fill(1);function draw(){x.fillStyle="rgba(0,0,0,0.1)";x.fillRect(0,0,c.width,c.height);x.fillStyle="#00FF41";x.font=f+"px monospace";d.forEach((y,i)=>{const t=String.fromCharCode(0x30A0+Math.random()*96);x.fillText(t,i*f,y*f);if(y*f>c.height&&Math.random()>0.975)d[i]=0;d[i]++});}setInterval(draw,35);</script></body></html>
 """
 
@@ -38,7 +41,15 @@ def s():
 @app.route('/a', methods=['POST'])
 def a():
     f = request.files.get('file')
-    n = f.filename if f else 'NENHUM'
-    return render_template_string(H, ma=f"📄 ARQUIVO: {n} | AGUARDANDO LÓGICA DE PERÍCIA.")
+    if not f: return render_template_string(H, ma="⚠️ SEM ARQUIVO")
+    try:
+        img = Image.open(f)
+        ex = img._getexif()
+        if ex:
+            d = " | ".join([f"{TAGS.get(k,k)}:{v}" for k,v in ex.items() if isinstance(v,(str,int))][:5])
+            res = f"🔍 DADOS: {d}"
+        else: res = "🛡️ SEM METADADOS (LIMPO)"
+    except: res = "⚠️ FORMATO NÃO SUPORTADO PARA EXIF"
+    return render_template_string(H, ma=f"📄 {f.filename}<br>{res}")
 
 if __name__ == '__main__': app.run(host='0.0.0.0', port=7860)
