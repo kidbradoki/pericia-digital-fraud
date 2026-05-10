@@ -2,13 +2,16 @@ import requests, re, os
 from flask import Flask, render_template_string, request
 from PIL import Image
 from PIL.ExifTags import TAGS
+import pytesseract
+import PyPDF2
 
 app = Flask(__name__)
 
+# Interface Tática GHOST v8.5
 H = """
-<!DOCTYPE html><html lang="pt-br"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>GHOST v7.0</title><style>
-*{box-sizing:border-box;margin:0;padding:0}body{background:#000;color:#00FF41;font-family:monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center}#m{position:fixed;top:0;left:0;z-index:-1}.app{width:95%;max-width:500px;padding:25px 10px;display:flex;flex-direction:column;gap:15px}h2{font-size:1.2rem;text-align:center;text-shadow:0 0 10px #00FF41;letter-spacing:3px}.mod{border:1px solid #145e1a;border-radius:12px;padding:18px;background:rgba(0,0,0,0.85);box-shadow:0 0 20px rgba(0,255,65,0.15)}h3{font-size:0.55rem;margin-bottom:12px;text-transform:uppercase;opacity:0.8}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.btn{display:flex;align-items:center;justify-content:center;background:#00FF41;color:#000;font-weight:900;border:none;border-radius:8px;padding:16px 2px;cursor:pointer;font-size:0.55rem;text-transform:uppercase;box-shadow:0 4px #008F11;text-decoration:none}.btn:active{transform:translateY(2px);box-shadow:0 2px #008F11}.eng{display:none;margin-top:15px;padding-top:10px;border-top:1px dashed #145e1a}input{width:100%;padding:12px;background:#000;border:1px solid #00FF41;color:#00FF41;border-radius:5px;margin-bottom:8px;outline:none}.res{margin-top:10px;padding:12px;border-radius:6px;background:rgba(0,255,65,0.1);border:1px solid #00FF41;font-size:0.65rem;word-break:break-all;}
-</style></head><body><canvas id="m"></canvas><div class="app"><h2>CENTRAL GHOST v7.0</h2>
+<!DOCTYPE html><html lang="pt-br"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>GHOST v8.5</title><style>
+*{box-sizing:border-box;margin:0;padding:0}body{background:#000;color:#00FF41;font-family:monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center}#m{position:fixed;top:0;left:0;z-index:-1}.app{width:95%;max-width:500px;padding:25px 10px;display:flex;flex-direction:column;gap:15px}h2{font-size:1.2rem;text-align:center;text-shadow:0 0 10px #00FF41;letter-spacing:3px}.mod{border:1px solid #145e1a;border-radius:12px;padding:18px;background:rgba(0,0,0,0.85);box-shadow:0 0 20px rgba(0,255,65,0.15)}h3{font-size:0.55rem;margin-bottom:12px;text-transform:uppercase;opacity:0.8}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.btn{display:flex;align-items:center;justify-content:center;background:#00FF41;color:#000;font-weight:900;border:none;border-radius:8px;padding:16px 2px;cursor:pointer;font-size:0.55rem;text-transform:uppercase;box-shadow:0 4px #008F11;text-decoration:none}.btn:active{transform:translateY(2px);box-shadow:0 2px #008F11}.eng{display:none;margin-top:15px;padding-top:10px;border-top:1px dashed #145e1a}input{width:100%;padding:12px;background:#000;border:1px solid #00FF41;color:#00FF41;border-radius:5px;margin-bottom:8px;outline:none}.res{margin-top:10px;padding:12px;border-radius:6px;background:rgba(0,255,65,0.1);border:1px solid #00FF41;font-size:0.65rem;word-break:break-all;max-height:300px;overflow-y:auto;}.warn{color:#FF4141;font-weight:bold;display:block;margin-bottom:5px;text-transform:uppercase;}
+</style></head><body><canvas id="m"></canvas><div class="app"><h2>CENTRAL GHOST v8.5</h2>
 <div class="mod"><h3>MOD 01: OSINT</h3><div class="g3"><a href="https://epieos.com" target="_blank" class="btn">EPIEOS</a><a href="https://intelx.io" target="_blank" class="btn">INTELX</a><a href="https://www.social-searcher.com" target="_blank" class="btn">SOCIAL</a></div></div>
 <div class="mod"><h3>MOD 02: TÉCNICO</h3><div class="g3"><a href="https://ipqualityscore.com/" target="_blank" class="btn">IP SCAN</a><a href="https://cnpj.biz" target="_blank" class="btn">CNPJ</a><a href="https://shodan.io" target="_blank" class="btn">SHODAN</a></div></div>
 <div class="mod"><h3>MOD 03: INVESTIGAÇÃO</h3><div class="g3"><a href="https://google.com" target="_blank" class="btn">GOOGLE</a><button onclick="t('pe')" class="btn">PLACAS</button><button onclick="t('ue')" class="btn">URL SCAN</button></div>
@@ -24,32 +27,57 @@ def index(): return render_template_string(H)
 
 @app.route('/p', methods=['POST'])
 def p():
-    p = request.form.get('placa').strip().upper().replace("-","")
+    pl = request.form.get('placa', '').strip().upper().replace("-","")
     try:
-        r = requests.get(f"https://www.keplaca.com/busca-placa/{p}", timeout=10).text
-        m = re.search(r'Modelo:</th><td><b>(.*?)</b>', r)
-        c = re.search(r'Cor:</th><td><b>(.*?)</b>', r)
+        r = requests.get(f"https://www.keplaca.com/busca-placa/{pl}", timeout=10).text
+        m = re.search(r'Modelo:</th><td><b>(.*?)</b>', r); c = re.search(r'Cor:</th><td><b>(.*?)</b>', r)
         res = f"📦 {m.group(1)} | 🎨 {c.group(1) if c else 'N/I'}" if m else "⚠️ PLACA NÃO ENCONTRADA."
-    except: res = "❌ ERRO DE CONEXÃO."
+    except: res = "❌ ERRO NA CONSULTA."
     return render_template_string(H, mp=res)
 
 @app.route('/s', methods=['POST'])
 def s():
-    u = request.form.get('url')
-    return render_template_string(H, ms=f"🔎 ALVO REGISTRADO: {u}")
+    u = request.form.get('url', '')
+    return render_template_string(H, ms=f"🔎 URL REGISTRADA: {u}")
 
 @app.route('/a', methods=['POST'])
 def a():
-    f = request.files.get('file')
-    if not f: return render_template_string(H, ma="⚠️ SEM ARQUIVO")
+    f = request.files.get('file'); res = ""; alert = ""
+    if not f: return render_template_string(H, ma="⚠️ NENHUM ALVO SELECIONADO.")
+    
+    ext = f.filename.split('.')[-1].lower()
     try:
-        img = Image.open(f)
-        ex = img._getexif()
-        if ex:
-            d = " | ".join([f"{TAGS.get(k,k)}:{v}" for k,v in ex.items() if isinstance(v,(str,int))][:5])
-            res = f"🔍 DADOS: {d}"
-        else: res = "🛡️ SEM METADADOS (LIMPO)"
-    except: res = "⚠️ FORMATO NÃO SUPORTADO PARA EXIF"
+        # PERÍCIA EM IMAGENS (PRINTS/FOTOS)
+        if ext in ['jpg', 'jpeg', 'png']:
+            img = Image.open(f)
+            txt = pytesseract.image_to_string(img, lang='por').upper()
+            ex = img._getexif()
+            meta = " | ".join([f"{TAGS.get(k,k)}:{v}" for k,v in ex.items() if isinstance(v,(str,int))][:5]) if ex else "SEM EXIF (DADOS REMOVIDOS)"
+            
+            # Lógica de detecção de fraude
+            fraude_keywords = ["CANVA", "PHOTOSHOP", "PICSART", "EDIT", "ADOBE"]
+            if any(x in meta.upper() or x in txt for x in fraude_keywords):
+                alert = "<span class='warn'>[!] ALERTA: POSSÍVEL MANIPULAÇÃO DETECTADA</span>"
+            
+            res = f"{alert}🔍 <b>ORIGEM:</b> {meta}<br>📝 <b>OCR:</b> {txt[:250]}"
+
+        # PERÍCIA EM DOCUMENTOS (PDF)
+        elif ext == 'pdf':
+            pdf = PyPDF2.PdfReader(f)
+            info = pdf.metadata
+            d = " | ".join([f"{k[1:]}:{v}" for k,v in info.items() if isinstance(v, str)][:5]) if info else "SEM METADADOS INTERNOS"
+            
+            if any(x in d.upper() for x in ["CANVA", "ILLUSTRATOR", "EDITOR"]):
+                alert = "<span class='warn'>[!] ALERTA: PDF GERADO EM SOFTWARE DE EDIÇÃO</span>"
+            
+            res = f"{alert}📄 <b>INFO PDF:</b> {d}<br>📊 <b>PÁGINAS:</b> {len(pdf.pages)}"
+            
+        else: res = "⚠️ FORMATO NÃO SUPORTADO PARA PERÍCIA."
+    except Exception as e:
+        res = f"❌ ERRO TÉCNICO: {str(e)}"
+    
     return render_template_string(H, ma=f"📄 {f.filename}<br>{res}")
 
-if __name__ == '__main__': app.run(host='0.0.0.0', port=7860)
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 7860))
+    app.run(host='0.0.0.0', port=port)
