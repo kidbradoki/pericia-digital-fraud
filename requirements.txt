@@ -2,7 +2,7 @@
 Flask
 requests
 Pillow
-pytesseract
+pytesseract-ocr-por
 PyPDF2
 gunicorn
 opencv-python-headless
