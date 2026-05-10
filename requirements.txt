@@ -1,8 +1,10 @@
+
 Flask
-pypdf
-easyocr
 requests
+Pillow
+pytesseract
+PyPDF2
 gunicorn
 opencv-python-headless
 numpy
-pytesseract
+easyocr
