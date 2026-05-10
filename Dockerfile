@@ -1,34 +1,32 @@
 # Usa uma imagem oficial do Python como base
 FROM python:3.10-slim
 
-# Evita que o Python gere arquivos .pyc e permite logs em tempo real
+# Evita arquivos temporários e permite logs em tempo real
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-# Instala dependências do SISTEMA (O motor que faltava para o OCR e Imagens)
+# Instala dependências do SISTEMA (Correção para Debian Trixie/Hugging Face)
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     tesseract-ocr-por \
     libtesseract-dev \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Define o diretório de trabalho dentro do container
+# Define o diretório de trabalho
 WORKDIR /app
 
-# Copia primeiro apenas o requirements para aproveitar o cache de camadas do Docker
-COPY requirements.txt .
-
 # Instala as bibliotecas do Python
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia o restante dos arquivos do seu projeto (app.py, etc)
+# Copia o resto do código
 COPY . .
 
-# Expõe a porta padrão do Hugging Face Spaces
+# Porta do Hugging Face
 EXPOSE 7860
 
-# Comando para iniciar o servidor usando o Gunicorn (Próprio para produção)
+# Inicia o servidor
 CMD ["gunicorn", "-b", "0.0.0.0:7860", "app:app"]
