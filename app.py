@@ -1,21 +1,10 @@
-import os, re, pypdf, easyocr, requests
-import numpy as np
-from flask import Flask, render_template_string, request, redirect
-from urllib.parse import urlparse
-from PIL import Image
-from PIL.ExifTags import TAGS
+import requests
+import re
+from flask import Flask, render_template_string, request
 
 app = Flask(__name__)
 
-UPLOAD_FOLDER = 'uploads'
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-    
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# Inicializa o OCR
-reader = easyocr.Reader(['pt', 'en'], gpu=False)
-
+# --- LAYOUT TÁTICO GHOST v7.0 (APROVADO) ---
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -26,274 +15,167 @@ HTML_PAGE = """
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
-            background-color: #0d1117; 
-            color: #c9d1d9; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; 
-            padding: 10px; 
-            text-align: center; 
+            background-color: #000; color: #00FF41; 
+            font-family: 'Courier New', monospace; min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center;
         }
-        .flex-container { 
-            display: flex; 
-            flex-direction: row; 
-            flex-wrap: wrap; 
-            justify-content: space-between; 
-            width: 100%; 
+        #matrix-canvas { position: fixed; top: 0; left: 0; z-index: -1; }
+        
+        .app-container { width: 95%; max-width: 500px; padding: 25px 10px; display: flex; flex-direction: column; gap: 15px; }
+        
+        h2 { font-size: 1.2rem; text-align: center; text-shadow: 0 0 10px #00FF41; letter-spacing: 3px; margin-bottom: 5px; }
+        
+        .module { 
+            border: 1px solid #145e1a; border-radius: 12px; padding: 18px; 
+            background: rgba(0, 0, 0, 0.85); box-shadow: 0 0 20px rgba(0, 255, 65, 0.15);
         }
-        .box-mini { 
-            border: 1px solid #30363d; 
-            border-radius: 8px; 
-            padding: 10px; 
-            background: #161b22; 
-            text-align: left; 
-            width: 48%; 
-            margin-bottom: 10px; 
-        }
-        .box-full { 
-            border: 1px solid #30363d; 
-            border-radius: 8px; 
-            padding: 12px; 
-            background: #161b22; 
-            text-align: left; 
-            width: 100%; 
-            margin-bottom: 10px; 
-        }
+        
+        h3 { font-size: 0.55rem; color: #00FF41; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
+
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
         .btn { 
-            display: block; 
-            width: 100%; 
-            padding: 10px 2px; 
-            border-radius: 6px; 
-            font-weight: bold; 
-            margin-top: 8px; 
-            text-align: center; 
-            color: white; 
-            font-size: 0.65rem; 
-            text-transform: uppercase; 
-            text-decoration: none; 
-            border: none; 
-            cursor: pointer; 
+            display: flex; align-items: center; justify-content: center;
+            background-color: #00FF41; color: #000; font-weight: 900; 
+            border: none; border-radius: 8px; padding: 16px 2px;
+            cursor: pointer; font-size: 0.55rem; text-decoration: none; text-transform: uppercase;
+            text-align: center; transition: 0.2s; box-shadow: 0 4px #008F11;
         }
-        .btn-green { background-color: #238636; }
-        .btn-purple { background-color: #8957e5; }
-        .btn-orange { background-color: #d29922; }
-        .btn-blue { background-color: #0969da; }
-        .btn-red { background-color: #da3633; }
-        .btn-dark { background-color: #30363d; border: 1px solid #8b949e; }
-        h2 { 
-            color: #3fb950; 
-            font-size: 1rem; 
-            margin-bottom: 10px; 
-            text-transform: uppercase; 
-            letter-spacing: 1px; 
+        .btn:active { transform: translateY(2px); box-shadow: 0 2px #008F11; }
+
+        .hidden-engine { display: none; margin-top: 15px; padding-top: 10px; border-top: 1px dashed #145e1a; }
+        
+        input[type="text"], input[type="file"] { 
+            width: 100%; padding: 12px; background: #000; border: 1px solid #00FF41; 
+            color: #00FF41; border-radius: 5px; font-size: 0.8rem; margin-bottom: 8px; outline: none;
         }
-        h3 { 
-            color: #8b949e; 
-            font-size: 0.55rem; 
-            border-bottom: 1px solid #30363d; 
-            padding-bottom: 3px; 
-            text-transform: uppercase; 
-            margin-bottom: 5px; 
-        }
-        input[type="text"] { 
-            width: 100%; 
-            background: #0d1117; 
-            border: 1px solid #30363d; 
-            color: #7ee787; 
-            padding: 8px; 
-            border-radius: 4px; 
-            font-size: 0.7rem; 
-            margin-top: 5px; 
-        }
+
         .status-badge { 
-            margin-top: 10px; 
-            padding: 10px; 
-            border-radius: 6px; 
-            font-weight: bold; 
-            font-size: 0.75rem; 
-            text-align: center; 
-        }
-        .fraude { 
-            background: rgba(218, 54, 51, 0.2); 
-            border: 1px solid #da3633; 
-            color: #ff7b72; 
-        }
-        .real { 
-            background: rgba(35, 134, 54, 0.2); 
-            border: 1px solid #238636; 
-            color: #7ee787; 
-        }
-        .dados-container { 
-            background: #000; 
-            color: #8b949e; 
-            font-family: monospace; 
-            font-size: 0.55rem; 
-            padding: 10px; 
-            margin-top: 8px; 
-            border-radius: 4px; 
-            border: 1px solid #30363d; 
-            text-align: left; 
-            overflow-wrap: break-word; 
-            line-height: 1.2; 
-            max-height: 250px; 
-            overflow-y: auto; 
+            margin-top: 10px; padding: 12px; border-radius: 6px; 
+            background: rgba(0, 255, 65, 0.1); border: 1px solid #00FF41; 
+            font-size: 0.65rem; color: #00FF41; line-height: 1.4;
         }
     </style>
 </head>
 <body>
-    <h2>CENTRAL GHOST v7.0</h2>
-    <div class="flex-container">
+    <canvas id="matrix-canvas"></canvas>
+    <div class="app-container">
+        <h2>CENTRAL GHOST v7.0</h2>
         
-        <div class="box-mini">
-            <h3>MOD 01: BUSCA</h3>
-            <a href="https://epieos.com" target="_blank" class="btn btn-green">EPIEOS</a>
-            <a href="https://intelx.io" target="_blank" class="btn btn-purple">INTELX</a>
-            <a href="https://www.social-searcher.com" target="_blank" class="btn btn-orange">SOCIAL</a>
-        </div>
-        
-        <div class="box-mini">
-            <h3>MOD 02: TÉCNICO</h3>
-            <a href="https://www.ipqualityscore.com/" target="_blank" class="btn btn-red">IP SCAN</a>
-            <a href="https://cnpj.biz" target="_blank" class="btn btn-blue">CNPJ</a>
-            <a href="https://www.google.com" target="_blank" class="btn btn-dark">GOOGLE</a>
-        </div>
-        
-        <div class="box-full">
-            <h3>MOD 04: SENTINELA DE LINKS (URL SCAN)</h3>
-            <form action="/scan_url" method="post">
-                <input type="text" name="url" placeholder="Cole o link suspeito aqui..." required>
-                <button type="submit" class="btn btn-purple">VERIFICAR REPUTAÇÃO</button>
-            </form>
-            {% if u %}
-            <div class="status-badge {{ 'fraude' if u.risco == 'ALTO' else 'real' }}">
-                [{{ u.risco }}] {{ u.titulo }}
-                <p style="font-size: 0.6rem; font-weight: normal; margin-top:5px;">Domínio: {{ u.dominio }}</p>
-                <div class="dados-container"><strong>REPORTE SENTINELA:</strong><br>{{ u.msg }}</div>
+        <div class="module">
+            <h3>MOD 01: BUSCA EXTERNA</h3>
+            <div class="grid-3">
+                <a href="https://epieos.com" target="_blank" class="btn">EPIEOS</a>
+                <a href="https://intelx.io" target="_blank" class="btn">INTELX</a>
+                <a href="https://www.social-searcher.com" target="_blank" class="btn">SOCIAL</a>
             </div>
-            {% endif %}
-        </div>
-        
-        <div class="box-full">
-            <h3>MOD 03: SCANNER OCR ELITE (PDF/FOTO)</h3>
-            <form action="/analisar" method="post" enctype="multipart/form-data">
-                <input type="file" name="file" accept=".pdf, .jpg, .jpeg, .png" style="font-size:0.7rem; margin: 10px 0; color:#8b949e;" required>
-                <button type="submit" class="btn btn-green">EXECUTAR PERÍCIA (TEXTO)</button>
-            </form>
-            {% if r %}
-            <div class="status-badge {{ 'fraude' if r.status == 'A' else 'real' }}">
-                {{ r.titulo }}
-                <div class="dados-container">{{ r.dados }}</div>
-            </div>
-            {% endif %}
         </div>
 
-        <div class="box-full">
-            <h3>MOD 05: EXTRAÇÃO DE METADADOS (EXIF)</h3>
-            <form action="/metadados" method="post" enctype="multipart/form-data">
-                <input type="file" name="file" accept=".jpg, .jpeg, .png, .tiff" style="font-size:0.7rem; margin: 10px 0; color:#8b949e;" required>
-                <button type="submit" class="btn btn-blue">EXTRAIR DADOS OCULTOS</button>
-            </form>
-            {% if m %}
-            <div class="status-badge {{ 'fraude' if m.status == 'A' else 'real' }}">
-                {{ m.titulo }}
-                <div class="dados-container">{{ m.dados | safe }}</div>
+        <div class="module">
+            <h3>MOD 02: INFRAESTRUTURA</h3>
+            <div class="grid-3">
+                <a href="https://www.ipqualityscore.com/" target="_blank" class="btn">IP SCAN</a>
+                <a href="https://cnpj.biz" target="_blank" class="btn">CNPJ</a>
+                <a href="https://shodan.io" target="_blank" class="btn">SHODAN</a>
             </div>
-            {% endif %}
         </div>
-        
+
+        <div class="module">
+            <h3>MOD 03: INVESTIGAÇÃO</h3>
+            <div class="grid-3">
+                <a href="https://www.google.com" target="_blank" class="btn">GOOGLE</a>
+                <button onclick="toggleEngine('p-engine')" class="btn">PLACAS</button>
+                <button onclick="toggleEngine('u-engine')" class="btn">URL SCAN</button>
+            </div>
+            <div id="p-engine" class="hidden-engine" style="display:{% if u %}block{% else %}none{% endif %};">
+                <form action="/puxar_placa" method="post">
+                    <input type="text" name="placa" required>
+                    <button class="btn" style="width:100%;">EXECUTAR BUSCA</button>
+                </form>
+                {% if u %}<div class="status-badge">{{ u.msg }}</div>{% endif %}
+            </div>
+            <div id="u-engine" class="hidden-engine">
+                <form action="/scan_url" method="post">
+                    <input type="text" name="url" required>
+                    <button class="btn" style="width:100%;">SCANNER</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="module">
+            <h3>MOD 04: PERÍCIA DIGITAL</h3>
+            <div class="grid-3">
+                <button onclick="toggleEngine('f-engine')" class="btn">ARQUIVO</button>
+                <button onclick="toggleEngine('f-engine')" class="btn">EXECUTAR</button>
+                <a href="/" class="btn">LIMPAR</a>
+            </div>
+            <div id="f-engine" class="hidden-engine">
+                <form action="/analisar" method="post" enctype="multipart/form-data">
+                    <input type="file" name="file" required>
+                    <button type="submit" class="btn" style="width:100%;">PROCESSAR</button>
+                </form>
+            </div>
+        </div>
     </div>
-    <p style="margin-top: 15px; font-size: 0.5rem; color: #484f58;">SISTEMA PRIVATIVO | GHOST INTEL</p>
+
+    <script>
+        function toggleEngine(id) {
+            const el = document.getElementById(id);
+            el.style.display = (el.style.display === 'block') ? 'none' : 'block';
+        }
+
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        const fontSize = 16;
+        const drops = Array(Math.floor(canvas.width / fontSize)).fill(1);
+        function draw() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.1)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#00FF41"; ctx.font = fontSize + "px monospace";
+            drops.forEach((y, i) => {
+                const text = String.fromCharCode(0x30A0 + Math.random() * 96);
+                ctx.fillText(text, i * fontSize, y * fontSize);
+                if (y * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            });
+        }
+        setInterval(draw, 35);
+    </script>
 </body>
 </html>
 """
 
-def motor_analise(caminho):
-    texto = ""
-    try:
-        ext = caminho.lower().split('.')[-1]
-        
-        if ext == 'pdf':
-            with open(caminho, "rb") as f:
-                pdf = pypdf.PdfReader(f)
-                [ (texto := texto + pg.extract_text().upper() + " ") for pg in pdf.pages ]
-                
-        if not texto.strip() or ext in ['jpg', 'jpeg', 'png']:
-            texto = " ".join(reader.readtext(caminho, detail=0)).upper()
-            
-    except:
-        return {"status": "A", "titulo": "⚠️ FALHA", "dados": "Erro no OCR"}
-        
-    res = " ".join(texto.split())[:800]
-    
-    if "AGENDAMENTO" in texto:
-        return {"status": "A", "titulo": "🚨 GOLPE: PIX AGENDADO", "dados": res}
-        
-    return {"status": "O", "titulo": "🔍 ANÁLISE CONCLUÍDA", "dados": res}
-
-def motor_metadados(caminho):
-    try:
-        img = Image.open(caminho)
-        # Tenta extrair os metadados profundos (onde fica GPS, Câmera, etc)
-        exif_info = img._getexif()
-        
-        if not exif_info:
-            return {"status": "A", "titulo": "⚠️ RESULTADO", "dados": "Nenhum dado EXIF oculto encontrado. A imagem pode ter sido limpa (ex: enviada via WhatsApp)."}
-            
-        linhas = []
-        for tag_id, valor in exif_info.items():
-            tag_nome = TAGS.get(tag_id, tag_id)
-            # Ignora blocos binários complexos para não travar a tela
-            if isinstance(valor, bytes):
-                valor = "[Dados Binários Omitidos]"
-            linhas.append(f"<b>[{tag_nome}]:</b> {valor}")
-            
-        res = "<br>".join(linhas)
-        return {"status": "O", "titulo": "🎯 METADADOS CAPTURADOS", "dados": res}
-        
-    except Exception as e:
-        return {"status": "A", "titulo": "⚠️ ERRO DE LEITURA", "dados": f"Falha ao ler arquivo: {str(e)}"}
-
+# --- LÓGICA DE EXTRAÇÃO INTERNA ---
 @app.route('/')
 def index():
     return render_template_string(HTML_PAGE)
 
-@app.route('/scan_url', methods=['POST'])
-def scan_url():
-    url = request.form.get('url')
-    domain = urlparse(url).netloc if "://" in url else urlparse("http://"+url).netloc
+@app.route('/puxar_placa', methods=['POST'])
+def puxar_placa():
+    placa_raw = request.form.get('placa').strip().upper().replace("-", "")
+    url = f"https://www.keplaca.com/busca-placa/{placa_raw}"
     
-    shady_tlds = ['.xyz', '.top', '.zip', '.icu', '.link', '.bet', '.win']
-    blacklist = ['brazino777', 'login', 'atualizar-dados', 'verificar-pix', 'suporte-bank']
-    
-    risco = "BAIXO"
-    msg = "Domínio parece limpo. Sem detecções imediatas em listas de phishing."
-    
-    if any(x in domain.lower() for x in shady_tlds):
-        risco = "ALTO"
-        msg = "EXTENSÃO SUSPEITA (.xyz, .zip, etc). Comum em ataques de malware."
+    headers = {'User-Agent': 'Mozilla/5.0'}
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        html = response.text
         
-    if any(x in url.lower() for x in blacklist):
-        risco = "ALTO"
-        msg = "URL contém palavras-chave usadas em PHISHING/GOLPES bancários."
-        
-    res = {"dominio": domain, "risco": risco, "titulo": "SCANNER DE LINK", "msg": msg}
-    return render_template_string(HTML_PAGE, u=res)
+        # Filtros de extração tática
+        modelo = re.search(r'Modelo:</th><td><b>(.*?)</b>', html)
+        cor = re.search(r'Cor:</th><td><b>(.*?)</b>', html)
+        ano = re.search(r'Ano:</th><td><b>(.*?)</b>', html)
+        cidade = re.search(r'Cidade:</th><td><b>(.*?)</b>', html)
 
-@app.route('/analisar', methods=['POST'])
-def upload_analise():
-    f = request.files.get('file')
-    if f:
-        p = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
-        f.save(p)
-        return render_template_string(HTML_PAGE, r=motor_analise(p))
-    return redirect('/')
+        if modelo:
+            resultado = f"📦 {modelo.group(1)} | 🎨 {cor.group(1) if cor else 'N/I'} | 📅 {ano.group(1) if ano else 'N/I'} | 📍 {cidade.group(1) if cidade else 'N/I'}"
+        else:
+            resultado = "⚠️ PLACA NÃO ENCONTRADA NA BASE PÚBLICA."
+            
+    except Exception as e:
+        resultado = "❌ ERRO DE CONEXÃO COM O SERVIDOR DE PLACAS."
 
-@app.route('/metadados', methods=['POST'])
-def upload_metadados():
-    f = request.files.get('file')
-    if f:
-        p = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
-        f.save(p)
-        return render_template_string(HTML_PAGE, m=motor_metadados(p))
-    return redirect('/')
+    return render_template_string(HTML_PAGE, u={'msg': resultado})
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(host='0.0.0.0', port=7860)
